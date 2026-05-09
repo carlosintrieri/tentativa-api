@@ -115,7 +115,95 @@ Os dados coletados pelas estações são enviados periodicamente a um servidor c
 
 ## Tecnologias
 
-A definir pela equipe.
+| Camada | Tecnologia |
+|--------|-----------|
+| Frontend | React 18 + Vite + Bootstrap 5 |
+| Backend | Node.js + Express |
+| Banco de Dados | PostgreSQL + MongoDB |
+| Autenticação | JWT (jsonwebtoken + bcryptjs) |
+
+---
+
+## Como Rodar o Projeto
+
+### Pré-requisitos
+
+- Node.js instalado
+- PostgreSQL instalado e rodando
+- MongoDB instalado e rodando (opcional)
+
+### Backend
+
+**1. Entre na pasta do backend:**
+```bash
+cd backend
+```
+
+**2. Instale as dependências:**
+```bash
+npm install
+npm install dotenv express
+```
+
+**3. Crie o arquivo `.env` a partir do exemplo:**
+```bash
+copy .env.example .env
+```
+
+**4. Abra o `.env` e preencha com sua senha do banco:**
+```
+PG_HOST=localhost
+PG_PORT=5432
+PG_USER=postgres
+PG_PASSWORD=sua_senha_aqui
+PG_DATABASE=enviro
+MONGO_URL=mongodb://localhost:27017/enviro
+JWT_SECRET=chave_secreta_qualquer
+PORT=3001
+```
+
+**5. Crie o banco e as tabelas:**
+```bash
+node setup.js
+```
+
+**6. Inicie o servidor:**
+```bash
+node server.js
+```
+
+O backend estará rodando em `http://localhost:3001`
+
+---
+
+### Frontend
+
+**1. Entre na pasta do frontend:**
+```bash
+cd frontend
+```
+
+**2. Instale as dependências:**
+```bash
+npm install
+npm i vite
+```
+
+**3. Inicie o servidor de desenvolvimento:**
+```bash
+npm start
+```
+
+O frontend estará disponível em `http://localhost:5173`
+
+---
+
+### Credenciais padrão
+
+| Perfil | E-mail | Senha |
+|--------|--------|-------|
+| Administrador | admin@enviro.com | admin123 |
+| Público | publico@enviro.com | publico123 |
 
 ---
 
@@ -123,10 +211,8 @@ A definir pela equipe.
 
 | Sprint | Período | Entrega |
 |--------|---------|---------|
-| Sprint 1 | — | — |
-| Sprint 2 | — | — |
-| Sprint 3 | — | — |
-| Sprint 4 | — | — |
+| Sprint 1 | 08/04/2026 | CRUD de Estações, Tipos de Parâmetros, Parâmetros, Alertas e Usuários |
+| Sprint 2 | 06/05/2026 | Autenticação JWT, modal em 2 etapas, vinculação de tipos às estações |
 
 ---
 
