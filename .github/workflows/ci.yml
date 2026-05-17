@@ -1,0 +1,38 @@
+name: CI — EnviroSense
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (Node.js + Express)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Instalar dependências
+        working-directory: ./backend
+        run: npm install
+
+      - name: Verificar sintaxe (node --check)
+        working-directory: ./backend
+        run: node --check server.js
+
+  frontend:
+    name: Frontend (React + Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Instalar dependências
+        working-directory: ./frontend
+        run: npm install
+
+      - name: Build do projeto
+        working-directory: ./frontend
+        run: npm run build
