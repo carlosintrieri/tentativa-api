@@ -1,6 +1,6 @@
 // Alertas.jsx — aqui gerencio o CRUD completo de alertas
 //
-// LIGAÇÃO COM OUTRAS PÁGINAS:
+// O que liga as páginas:
 // uso estacoes (criadas em Estacoes.jsx) para vincular cada alerta a uma estação
 // uso parametros (criados em Parametros.jsx) opcionalmente — o alerta pode ou não ter um parâmetro
 //
