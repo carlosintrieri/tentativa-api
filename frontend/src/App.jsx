@@ -1,16 +1,26 @@
 // App.jsx — arquivo central do sistema
+//
+// O que faz:
+// 1. Controla login e logout
+// 2. Busca todos os dados do backend ao fazer login
+// 3. Guarda as funções CRUD e passa para cada página
+// 4. Decide qual página mostrar conforme o item clicado na navbar
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import Login      from './pages/Login'
 import Estacoes   from './pages/Estacoes'
 import Parametros from './pages/Parametros'
 import Alertas    from './pages/Alertas'
 import Usuarios   from './pages/Usuarios'
 
+// URL base da API — usa variável de ambiente em produção, localhost em desenvolvimento
+const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+// FUNÇÃO API
 async function api(rota, metodo, dados) {
   const cabecalho = { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
   if (dados) cabecalho['Content-Type'] = 'application/json'
-  const resposta = await fetch('http://localhost:3001' + rota, {
+  const resposta = await fetch(BASE + rota, {
     method:  metodo || 'GET',
     headers: cabecalho,
     body:    dados ? JSON.stringify(dados) : undefined
@@ -18,6 +28,7 @@ async function api(rota, metodo, dados) {
   return resposta.json()
 }
 
+// FUNÇÃO BUSCAR
 function buscar(rota, salvar) {
   api(rota).then(function(dados) { salvar(Array.isArray(dados) ? dados : []) })
 }
@@ -60,6 +71,7 @@ export default function App() {
     },
     salvarEstacao:    async function(id, f) { id ? await api('/estacoes/'+id,'PUT',f)  : await api('/estacoes','POST',f);   buscar('/estacoes',   setEstacoes)   },
     deletarEstacao:   async function(id)    { if (!confirm('Deletar estação?')) return; await api('/estacoes/'+id,'DELETE'); buscar('/estacoes',   setEstacoes)   },
+
     salvarTipo: async function(id, f) {
       if (id) { await api('/tipos/'+id, 'PUT', f) }
       else    { await api('/tipos',     'POST', f) }
@@ -71,12 +83,14 @@ export default function App() {
       return r
     },
     deletarTipo:      async function(id)    { if (!confirm('Deletar tipo?')) return;    await api('/tipos/'+id,'DELETE');    buscar('/tipos',      setTipos)      },
+
     salvarParametro: async function(f) {
       await api('/parametros', 'POST', f)
       await api('/parametros').then(function(dados) { setParametros(Array.isArray(dados) ? dados : []) })
     },
-    deletarParametro:       async function(id)    { await api('/parametros/'+id,'DELETE');                                         buscar('/parametros', setParametros) },
-    recarregarParametros:   function()             { buscar('/parametros', setParametros) },
+    deletarParametro:     async function(id) { await api('/parametros/'+id,'DELETE');                                         buscar('/parametros', setParametros) },
+    recarregarParametros: function()         { buscar('/parametros', setParametros) },
+
     salvarAlerta:     async function(id, f) { id ? await api('/alertas/'+id,'PUT',f)   : await api('/alertas','POST',f);   buscar('/alertas',    setAlertas)    },
     deletarAlerta:    async function(id)    { if (!confirm('Deletar alerta?')) return;  await api('/alertas/'+id,'DELETE');  buscar('/alertas',    setAlertas)    },
     salvarUsuario:    async function(id, f) { id ? await api('/usuarios/'+id,'PUT',f)  : await api('/usuarios','POST',f);  buscar('/usuarios',   setUsuarios)   },
@@ -88,7 +102,7 @@ export default function App() {
   const ehAdmin = usuario.nivel === 'admin'
 
   const abas = [
-{ id: 'estacoes',   texto: 'Estações'   },
+    { id: 'estacoes',   texto: 'Estações'   },
     { id: 'parametros', texto: 'Parâmetros' },
     { id: 'alertas',    texto: 'Alertas'    },
     { id: 'usuarios',   texto: 'Usuários', soAdmin: true },
@@ -119,7 +133,7 @@ export default function App() {
       </nav>
 
       <div className="container-fluid p-4" style={{ maxWidth: 1200 }}>
-        {pagina === 'estacoes'   && <Estacoes estacoes={estacoes} parametros={parametros} tipos={tipos} ehAdmin={ehAdmin} crud={crud} />}
+        {pagina === 'estacoes'   && <Estacoes   estacoes={estacoes} parametros={parametros} tipos={tipos} ehAdmin={ehAdmin} crud={crud} />}
         {pagina === 'parametros' && <Parametros tipos={tipos} ehAdmin={ehAdmin} crud={crud} />}
         {pagina === 'alertas'    && <Alertas    alertas={alertas} estacoes={estacoes} parametros={parametros} ehAdmin={ehAdmin} crud={crud} />}
         {pagina === 'usuarios'   && <Usuarios   usuarios={usuarios} usuarioLogado={usuario} crud={crud} />}
