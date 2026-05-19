@@ -6,7 +6,7 @@ const path               = require('path')
 const { conectarMongo }  = require('./conexao')
 
 const app   = express()
-const PORTA = process.env.PORT || 3001
+const PORTA = process.env.PORT || 8080
 
 app.use(require('cors')())
 app.use(express.json())
