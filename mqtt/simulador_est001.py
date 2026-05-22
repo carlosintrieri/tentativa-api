@@ -11,7 +11,7 @@ UID     = 'EST001'
 TOPICO  = 'envirosense/medicoes'
 BROKER  = 'test.mosquitto.org'
 PORTA   = 1883
-INTERVALO = 10  # segundos entre cada envio — mude aqui se quiser mais rápido ou lento
+INTERVALO = 30  # segundos entre cada envio — mude aqui se quiser mais rápido ou lento
 
 con = mqtt.Client()
 con.connect(BROKER, PORTA, 60)
