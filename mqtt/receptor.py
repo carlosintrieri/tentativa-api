@@ -1,5 +1,6 @@
 # receptor.py — Recebe dados MQTT e salva no banco PostgreSQL Azure
 #
+
 # O que faz:
 # 1. Escuta o tópico envirosense/medicoes no broker MQTT
 # 2. Recebe o JSON com uid, temperatura e umidade
