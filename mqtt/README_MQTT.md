@@ -3,6 +3,7 @@
 
 ## O que é isso?
 
+
 Este módulo simula dispositivos IoT (sensores meteorológicos) enviando dados de temperatura e umidade via protocolo MQTT para o banco de dados do EnviroSense.
 
 ## Fluxo completo
