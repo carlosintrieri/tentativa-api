@@ -23,6 +23,8 @@ app.use('/tipos',      require('./rotas/tipos'))
 app.use('/parametros', require('./rotas/parametros'))
 app.use('/alertas',    require('./rotas/alertas'))
 app.use('/usuarios',   require('./rotas/usuarios'))
+app.use('/medicoes',   require('./rotas/medicoes'))
+app.use('/',           require('./rotas/leituras'))
 
 // serve o frontend em produção
 app.use(express.static(path.join(__dirname, '../frontend/dist')))
