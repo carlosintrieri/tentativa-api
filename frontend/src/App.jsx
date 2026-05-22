@@ -7,6 +7,7 @@
 // 4. Decide qual página mostrar conforme o item clicado na navbar
 // 5. Atualiza medições automaticamente a cada 10 segundos
 
+
 import { useState, useEffect } from 'react'
 import Login      from './pages/Login'
 import Estacoes   from './pages/Estacoes'
