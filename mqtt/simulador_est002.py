@@ -1,6 +1,7 @@
 # simulador_est002.py — Simula a Estação Norte (EST002)
 # Publica temperatura e umidade via MQTT a cada 10 segundos
 
+
 import paho.mqtt.client as mqtt
 import time
 import json
