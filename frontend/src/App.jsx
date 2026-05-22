@@ -5,6 +5,7 @@
 // 2. Busca todos os dados do backend ao fazer login
 // 3. Guarda as funções CRUD e passa para cada página
 // 4. Decide qual página mostrar conforme o item clicado na navbar
+// 5. Atualiza medições automaticamente a cada 10 segundos
 
 import { useState, useEffect } from 'react'
 import Login      from './pages/Login'
@@ -12,9 +13,13 @@ import Estacoes   from './pages/Estacoes'
 import Parametros from './pages/Parametros'
 import Alertas    from './pages/Alertas'
 import Usuarios   from './pages/Usuarios'
+import Medicoes   from './pages/Medicoes'
 
 // URL base da API — usa variável de ambiente em produção, localhost em desenvolvimento
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+// intervalo de atualização das medições em milissegundos (10 segundos)
+const INTERVALO_MEDICOES = 10000
 
 // FUNÇÃO API
 async function api(rota, metodo, dados) {
@@ -42,7 +47,9 @@ export default function App() {
   const [parametros, setParametros] = useState([])
   const [alertas,    setAlertas]    = useState([])
   const [usuarios,   setUsuarios]   = useState([])
+  const [medicoes,   setMedicoes]   = useState([])
 
+  // BUSCA INICIAL — roda ao fazer login
   useEffect(function() {
     if (!usuario) return
     buscar('/estacoes',   setEstacoes)
@@ -50,6 +57,20 @@ export default function App() {
     buscar('/parametros', setParametros)
     buscar('/alertas',    setAlertas)
     buscar('/usuarios',   setUsuarios)
+    buscar('/medicoes',   setMedicoes)
+  }, [usuario?.id])
+
+  // ATUALIZAÇÃO AUTOMÁTICA DAS MEDIÇÕES — a cada 10 segundos
+  // useEffect com setInterval garante que as medições sempre estejam atualizadas
+  // clearInterval no return = limpa o intervalo quando o componente desmonta (logout)
+  useEffect(function() {
+    if (!usuario) return
+    const intervalo = setInterval(function() {
+      buscar('/medicoes', setMedicoes)
+      // atualiza alertas também para mostrar os disparados pelo receptor Python
+      buscar('/alertas', setAlertas)
+    }, INTERVALO_MEDICOES)
+    return function() { clearInterval(intervalo) }
   }, [usuario?.id])
 
   async function entrar(email, senha) {
@@ -105,7 +126,8 @@ export default function App() {
     { id: 'estacoes',   texto: 'Estações'   },
     { id: 'parametros', texto: 'Parâmetros' },
     { id: 'alertas',    texto: 'Alertas'    },
-    { id: 'usuarios',   texto: 'Usuários', soAdmin: true },
+    { id: 'medicoes',   texto: 'Medições'   },
+    { id: 'usuarios',   texto: 'Usuários',  soAdmin: true },
   ]
 
   const estiloAba = { color: '#ffffff', cursor: 'pointer', fontSize: 14, userSelect: 'none' }
@@ -125,6 +147,14 @@ export default function App() {
                 onClick={function() { setPagina(aba.id) }}
                 style={{ ...estiloAba, fontWeight: pagina === aba.id ? 'bold' : 'normal' }}>
                 {aba.texto}
+                {/* ponto indicador de medições novas */}
+                {aba.id === 'medicoes' && medicoes.length > 0 && pagina !== 'medicoes' && (
+                  <span style={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    background: '#86efac', display: 'inline-block',
+                    marginLeft: 4, verticalAlign: 'middle'
+                  }}></span>
+                )}
               </span>
             )
           })}
@@ -136,6 +166,7 @@ export default function App() {
         {pagina === 'estacoes'   && <Estacoes   estacoes={estacoes} parametros={parametros} tipos={tipos} ehAdmin={ehAdmin} crud={crud} />}
         {pagina === 'parametros' && <Parametros tipos={tipos} ehAdmin={ehAdmin} crud={crud} />}
         {pagina === 'alertas'    && <Alertas    alertas={alertas} estacoes={estacoes} parametros={parametros} ehAdmin={ehAdmin} crud={crud} />}
+        {pagina === 'medicoes'   && <Medicoes   medicoes={medicoes} estacoes={estacoes} />}
         {pagina === 'usuarios'   && <Usuarios   usuarios={usuarios} usuarioLogado={usuario} crud={crud} />}
       </div>
     </>
