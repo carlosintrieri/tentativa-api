@@ -102,12 +102,12 @@ erDiagram
     varchar perfil
   }
 
-  estacoes        ||--o{ parametros : "tem"
-  tipos_parametro ||--o{ parametros : "define"
-  estacoes        ||--o{ medicoes   : "gera"
-  parametros      ||--o{ medicoes   : "mede"
-  estacoes        ||--o{ alertas    : "monitora"
-  parametros      ||--o{ alertas    : "dispara"
+  estacoes        ||--o{ parametros : tem
+  tipos_parametro ||--o{ parametros : define
+  estacoes        ||--o{ medicoes   : gera
+  parametros      ||--o{ medicoes   : mede
+  estacoes        ||--o{ alertas    : monitora
+  parametros      ||--o{ alertas    : dispara
 ```
 
 ---
