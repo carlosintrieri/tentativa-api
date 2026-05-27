@@ -13,8 +13,8 @@ async function listar(req, res) {
 
 async function criar(req, res) {
   try {
-    const { id_estacao, id_parametro, severidade, mensagem } = req.body
-    const linhas = await AlertaModel.criar(id_estacao, id_parametro, severidade, mensagem)
+    const { id_estacao, id_parametro, severidade, mensagem, valor_min, valor_max } = req.body
+    const linhas = await AlertaModel.criar(id_estacao, id_parametro, severidade, mensagem, valor_min, valor_max)
     res.status(201).json(linhas[0])
   } catch (erro) {
     res.status(500).json({ erro: erro.message })
@@ -23,8 +23,11 @@ async function criar(req, res) {
 
 async function editar(req, res) {
   try {
-    const { id_estacao, id_parametro, severidade, mensagem, ativo } = req.body
-    const linhas = await AlertaModel.editar(req.params.id, id_estacao, id_parametro, severidade, mensagem, ativo)
+    const { id_estacao, id_parametro, severidade, mensagem, ativo, valor_min, valor_max } = req.body
+    const linhas = await AlertaModel.editar(
+      req.params.id, id_estacao, id_parametro,
+      severidade, mensagem, ativo, valor_min, valor_max
+    )
     res.json(linhas[0])
   } catch (erro) {
     res.status(500).json({ erro: erro.message })

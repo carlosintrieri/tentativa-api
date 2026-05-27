@@ -67,8 +67,8 @@ export default function Parametros({ tipos, ehAdmin, crud }) {
                   <tr key={tipo.id}>
                     <td>{tipo.nome}</td>
                     <td>{tipo.unidade}</td>
-                    <td>{tipo.fator ?? 1}</td>
-                    <td>{tipo.valor_offset ?? 0}</td>
+                    <td>{Number(tipo.fator ?? 1).toFixed(2)}</td>
+                    <td>{Number(tipo.valor_offset ?? 0).toFixed(2)}</td>
                     {ehAdmin && (
                       <td>
                         <button className="btn btn-sm btn-outline-secondary me-1"

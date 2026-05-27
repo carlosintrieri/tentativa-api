@@ -1,13 +1,10 @@
-// parametros.js — regras de negócio dos parâmetros (Estação + Tipo)
+// rotas/parametros.js
+const router               = require('express').Router()
+const ParametroController  = require('../controllers/ParametroController')
+const { verificarLogin, verificarAdmin } = require('../autenticacao')
 
-function validarParametro({ id_estacao, id_tipo_parametro }, existentes) {
-  if (!id_estacao || !id_tipo_parametro) throw new Error('estação e tipo são obrigatórios')
-  const duplicado = existentes.some(function(p) {
-    return String(p.id_estacao) === String(id_estacao) &&
-           String(p.id_tipo_parametro) === String(id_tipo_parametro)
-  })
-  if (duplicado) throw new Error('tipo já vinculado a esta estação')
-  return true
-}
+router.get   ('/',    verificarLogin,                 ParametroController.listar)
+router.post  ('/',    verificarLogin, verificarAdmin, ParametroController.criar)
+router.delete('/:id', verificarLogin, verificarAdmin, ParametroController.deletar)
 
-module.exports = { validarParametro }
+module.exports = router

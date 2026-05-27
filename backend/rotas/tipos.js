@@ -1,14 +1,11 @@
-// tipos.js — regras de negócio dos tipos de parâmetro
+// rotas/tipos.js
+const router          = require('express').Router()
+const TipoController  = require('../controllers/TipoController')
+const { verificarLogin, verificarAdmin } = require('../autenticacao')
 
-function validarTipo({ nome, unidade, fator, valor_offset }) {
-  if (!nome || nome.trim() === '')     throw new Error('nome obrigatório')
-  if (!unidade || unidade.trim() === '') throw new Error('unidade obrigatória')
-  if (fator === 0)                     throw new Error('fator não pode ser zero')
-  return true
-}
+router.get   ('/',    verificarLogin,                 TipoController.listar)
+router.post  ('/',    verificarLogin, verificarAdmin, TipoController.criar)
+router.put   ('/:id', verificarLogin, verificarAdmin, TipoController.editar)
+router.delete('/:id', verificarLogin, verificarAdmin, TipoController.deletar)
 
-function offsetPodeSerNegativo(valor_offset) {
-  return typeof valor_offset === 'number'
-}
-
-module.exports = { validarTipo, offsetPodeSerNegativo }
+module.exports = router

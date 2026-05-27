@@ -2,7 +2,8 @@
 
 const { sql } = require('../conexao')
 
-// busca as 100 medicoes mais recentes com JOIN para trazer nomes
+// busca as medicoes mais recentes com JOIN para trazer nomes
+// LIMIT 500 garante cobertura de todas as estacoes e parametros dos ultimos 5 minutos
 function buscarRecentes() {
   return sql(`
     SELECT
@@ -19,7 +20,7 @@ function buscarRecentes() {
     LEFT JOIN parametros      ON parametros.id      = medicoes.id_parametro
     LEFT JOIN tipos_parametro ON tipos_parametro.id = parametros.id_tipo_parametro
     ORDER BY medicoes.registrado_em DESC
-    LIMIT 100
+    LIMIT 500
   `)
 }
 
@@ -38,7 +39,7 @@ function buscarPorEstacao(id_estacao) {
     LEFT JOIN tipos_parametro ON tipos_parametro.id = parametros.id_tipo_parametro
     WHERE medicoes.id_estacao = $1
     ORDER BY medicoes.registrado_em DESC
-    LIMIT 50
+    LIMIT 100
   `, [id_estacao])
 }
 

@@ -2,8 +2,6 @@
 
 const { sql } = require('../conexao')
 
-// busca alertas com nome da estacao e parametro via JOIN
-// LEFT JOIN = inclui alertas mesmo sem parametro vinculado
 function buscarTodos() {
   return sql(`
     SELECT
@@ -13,6 +11,8 @@ function buscarTodos() {
       alertas.severidade,
       alertas.mensagem,
       alertas.ativo,
+      alertas.valor_min,
+      alertas.valor_max,
       estacoes.nome AS nome_estacao,
       tipos_parametro.nome AS nome_parametro
     FROM alertas
@@ -23,17 +23,23 @@ function buscarTodos() {
   `)
 }
 
-function criar(id_estacao, id_parametro, severidade, mensagem) {
+function criar(id_estacao, id_parametro, severidade, mensagem, valor_min, valor_max) {
   return sql(
-    'INSERT INTO alertas (id_estacao, id_parametro, severidade, mensagem) VALUES ($1, $2, $3, $4) RETURNING *',
-    [id_estacao, id_parametro || null, severidade || 'aviso', mensagem]
+    `INSERT INTO alertas (id_estacao, id_parametro, severidade, mensagem, valor_min, valor_max)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [id_estacao, id_parametro || null, severidade || 'info', mensagem,
+     valor_min || null, valor_max || null]
   )
 }
 
-function editar(id, id_estacao, id_parametro, severidade, mensagem, ativo) {
+function editar(id, id_estacao, id_parametro, severidade, mensagem, ativo, valor_min, valor_max) {
   return sql(
-    'UPDATE alertas SET id_estacao=$1, id_parametro=$2, severidade=$3, mensagem=$4, ativo=$5 WHERE id=$6 RETURNING *',
-    [id_estacao, id_parametro || null, severidade, mensagem, ativo !== false, id]
+    `UPDATE alertas
+     SET id_estacao=$1, id_parametro=$2, severidade=$3, mensagem=$4,
+         ativo=$5, valor_min=$6, valor_max=$7
+     WHERE id=$8 RETURNING *`,
+    [id_estacao, id_parametro || null, severidade, mensagem,
+     ativo !== false, valor_min || null, valor_max || null, id]
   )
 }
 

@@ -1,15 +1,11 @@
-// alertas.js — regras de negócio dos alertas
+// rotas/alertas.js
+const router            = require('express').Router()
+const AlertaController  = require('../controllers/AlertaController')
+const { verificarLogin, verificarAdmin } = require('../autenticacao')
 
-const SEVERIDADES = ['info', 'aviso', 'critico']
+router.get   ('/',    verificarLogin,                 AlertaController.listar)
+router.post  ('/',    verificarLogin, verificarAdmin, AlertaController.criar)
+router.put   ('/:id', verificarLogin, verificarAdmin, AlertaController.editar)
+router.delete('/:id', verificarLogin, verificarAdmin, AlertaController.deletar)
 
-function validarAlerta({ severidade, id_estacao, resolvido }) {
-  if (!SEVERIDADES.includes(severidade)) throw new Error('severidade inválida')
-  if (!id_estacao)                        throw new Error('estação obrigatória')
-  return true
-}
-
-function deveDisparar(alerta) {
-  return !alerta.resolvido
-}
-
-module.exports = { validarAlerta, deveDisparar }
+module.exports = router

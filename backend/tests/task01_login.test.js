@@ -9,7 +9,7 @@ test('18. token expirado ou inválido lança erro', () => {
 
 test('19. usuário público não pode fazer ação de admin', () => {
   expect(() => podeFazerAcaoAdmin('publico')).toThrow('apenas admin pode fazer isso')
-})
+}) // .toThrow é para verificar se está errado!
 
 test('20. senha errada lança erro', () => {
   expect(() => verificarSenha('senhaErrada', 'admin123')).toThrow('senha incorreta')
