@@ -38,9 +38,10 @@ function verificarExtremo(medicao) {
   if (!chave) return
   const lim = LIMITES[chave]
   const v   = Number(medicao.valor)
-
+ 
   if (lim.max !== null && v > lim.max) {
     toast(
+      // o iconeMax mostra os emojis direto do Unicode!
       `${lim.iconeMax} ${medicao.nome_estacao} — ${medicao.nome_parametro}: ${v.toFixed(1)} ${lim.unidade} (máximo: ${lim.max})`,
       {
         style:           { background: '#146c43', color: '#fff', fontWeight: 500 },
@@ -50,6 +51,7 @@ function verificarExtremo(medicao) {
         position:        'bottom-right',
       }
     )
+    // o iconeMin é usado por Unicode para mostrar o emoji
   } else if (lim.min !== null && v < lim.min) {
     toast(
       `${lim.iconeMin} ${medicao.nome_estacao} — ${medicao.nome_parametro}: ${v.toFixed(1)} ${lim.unidade} (mínimo: ${lim.min})`,
