@@ -61,67 +61,64 @@ Simulador Python
 
 ```mermaid
 erDiagram
-  estacoes {
-    int id PK
-    varchar nome
-    varchar endereco
-    varchar responsavel
-    varchar lat
-    varchar long
-    boolean ativo
-  }
-  tipos_parametro {
-    int id PK
-    varchar nome
-    varchar unidade
-    decimal fator
-    decimal valor_offset
-  }
-  parametros {
-    int id PK
-    int id_estacao FK
-    int id_tipo_parametro FK
-    boolean ativo
-  }
-  medicoes {
-    int id PK
-    int id_estacao FK
-    int id_parametro FK
-    decimal valor
-    timestamp registrado_em
-  }
-  historico_medicoes {
-    int id PK
-    int id_estacao FK
-    int id_parametro FK
-    decimal valor
-    timestamp registrado_em
-  }
-  alertas {
-    int id PK
-    int id_estacao FK
-    int id_parametro FK
-    varchar severidade
-    text mensagem
-    boolean ativo
-    timestamp criado_em
-  }
-  usuarios {
-    int id PK
-    varchar nome
-    varchar email
-    varchar senha
-    varchar perfil
-  }
+    estacoes {
+        int id PK
+        varchar nome
+        varchar endereco
+        varchar responsavel
+        varchar lat
+        varchar long
+        boolean ativo
+    }
 
-  estacoes        ||--o{ parametros         : tem
-  tipos_parametro ||--o{ parametros         : define
-  estacoes        ||--o{ medicoes           : gera
-  parametros      ||--o{ medicoes           : mede
-  estacoes        ||--o{ historico_medicoes : registra
-  parametros      ||--o{ historico_medicoes : registra
-  estacoes        ||--o{ alertas            : monitora
-  parametros      ||--o{ alertas            : dispara
+    tipos_parametro {
+        int id PK
+        varchar nome
+        varchar unidade
+        decimal fator
+        decimal valor_offset
+        json configuracao
+    }
+
+    usuarios {
+        int id PK
+        varchar nome
+        varchar email
+        varchar senha
+        varchar perfil
+    }
+
+    parametros {
+        int id PK
+        int id_estacao FK
+        int id_tipo_parametro FK
+        boolean ativo
+    }
+
+    medicoes {
+        int id PK
+        int id_estacao FK
+        int id_parametro FK
+        decimal valor
+        timestamp registrado_em
+    }
+
+    alertas {
+        int id PK
+        int id_estacao FK
+        int id_parametro FK
+        varchar severidade
+        text mensagem
+        boolean ativo
+        timestamp criado_em
+    }
+
+    estacoes ||--o{ parametros : "tem"
+    tipos_parametro ||--o{ parametros : "define"
+    estacoes ||--o{ medicoes : "gera"
+    parametros ||--o{ medicoes : "mede"
+    parametros ||--o{ alertas : "dispara"
+    tipos_parametro ||--o{ alertas : "monitora"
 ```
 
 ---
