@@ -28,11 +28,11 @@ function detectarCor(nome) {
 function icone(nome) {
   if (!nome) return '📊'
   const n = nome.toLowerCase()
-  if (n.includes('temperatura')) return '🌡️'
-  if (n.includes('umidade'))     return '💧'
-  if (n.includes('pressao') || n.includes('pressão')) return '🔵'
-  if (n.includes('chuva'))       return '🌧️'
-  if (n.includes('vento'))       return '💨'
+  if (n.includes('temperatura')) 
+  if (n.includes('umidade'))     
+  if (n.includes('pressão') || n.includes('pressão'))
+  if (n.includes('chuva'))   
+  if (n.includes('vento'))       
   return '📊'
 }
 
@@ -226,10 +226,6 @@ export default function Dashboard({ medicoes, estacoes }) {
         <h4 className="mb-0">
           <i className="bi bi-bar-chart-line me-2"></i>Dashboard
         </h4>
-        <span className="text-muted small">
-          <i className="bi bi-arrow-clockwise me-1"></i>
-          Atualiza a cada 10 segundos via MQTT
-        </span>
       </div>
 
       {/* select de estacao */}
@@ -248,7 +244,7 @@ export default function Dashboard({ medicoes, estacoes }) {
                 onChange={function(e) { setEstacaoSelecionada(e.target.value) }}>
                 <option value="">Selecione uma estação...</option>
                 {estacoes.map(function(e) {
-                  return <option key={e.id} value={e.id}>{e.nome} ({e.uid})</option>
+                  return <option key={e.id} value={e.id}>{e.nome}</option>
                 })}
               </select>
             </div>
@@ -268,10 +264,10 @@ export default function Dashboard({ medicoes, estacoes }) {
         </div>
       </div>
 
-      {/* graficos — um por parametro */}
+      {/* graficos — um por parametro - USEI O bi bi-bar-chart no CENTRO da tela*/}
       {!estacaoSelecionada && (
         <div className="text-center text-muted py-5">
-          <i className="bi bi-bar-chart fs-1 d-block mb-3 text-success"></i>
+          <i className="bi bi-bar-chart fs-1 d-block mb-3 text-success"></i> 
           Selecione uma estação para ver os gráficos
         </div>
       )}

@@ -1,55 +1,73 @@
-// App.jsx — arquivo central do sistema
-//
-// O que faz:
-// 1. Controla login e logout
-// 2. Busca todos os dados do backend ao fazer login
-// 3. Guarda as funções CRUD e passa para cada página
-// 4. Decide qual página mostrar conforme o item clicado na navbar
-// 5. Atualiza medições automaticamente a cada 10 segundos
-
-import { useState, useEffect } from 'react'
-import Login      from './pages/Login'
+import { useState, useEffect, useRef } from 'react'
 import Estacoes   from './pages/Estacoes'
 import Parametros from './pages/Parametros'
 import Alertas    from './pages/Alertas'
-import Usuarios   from './pages/Usuarios'
 import Medicoes   from './pages/Medicoes'
+import Usuarios   from './pages/Usuarios'
+import Dashboard  from './pages/Dashboard'
 
-// URL base da API — usa variável de ambiente em produção, localhost em desenvolvimento
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const BASE_URL      = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const INTERVALO     = 10000
+const CINCO_MIN_MS  = 5 * 60 * 1000
+const CINCO_MIN_SEG = 5 * 60
 
-// intervalo de atualização das medições em milissegundos (10 segundos)
-const INTERVALO_MEDICOES = 10000
-
-// FUNÇÃO API
 async function api(rota, metodo, dados) {
-  const cabecalho = { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+  const cabecalho = { Authorization: 'Bearer ' + localStorage.getItem('token') }
   if (dados) cabecalho['Content-Type'] = 'application/json'
-  const resposta = await fetch(BASE + rota, {
+  const res = await fetch(BASE_URL + rota, {
     method:  metodo || 'GET',
     headers: cabecalho,
     body:    dados ? JSON.stringify(dados) : undefined
   })
-  return resposta.json()
+  return res.json()
 }
 
-// FUNÇÃO BUSCAR
-function buscar(rota, salvar) {
-  api(rota).then(function(dados) { salvar(Array.isArray(dados) ? dados : []) })
+function buscar(rota, setter) {
+  api(rota).then(r => setter(Array.isArray(r) ? r : []))
+}
+
+function Login({ onEntrar }) {
+  const [form, setForm] = useState({ email: 'admin@enviro.com', senha: 'admin123' })
+  const [erro, setErro] = useState('')
+  const [load, setLoad] = useState(false)
+  async function submit(e) {
+    e.preventDefault(); setLoad(true); setErro('')
+    const r = await api('/auth/login', 'POST', form)
+    if (r.erro) { setErro(r.erro); setLoad(false); return }
+    localStorage.setItem('token', r.token)
+    localStorage.setItem('usuario', JSON.stringify(r.usuario))
+    onEntrar(r.usuario); setLoad(false)
+  }
+  return (
+    <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
+      <div className="card shadow p-4" style={{ width: 360 }}>
+        <h4 className="text-center mb-1">EnviroSense</h4>
+        <p className="text-center text-muted mb-4">Sistema de Estações Meteorológicas</p>
+        {erro && <div className="alert alert-danger py-2">{erro}</div>}
+        <form onSubmit={submit}>
+          <div className="mb-3"><label className="form-label">Email</label>
+            <input className="form-control" type="email" value={form.email} required onChange={e => setForm({...form, email: e.target.value})} /></div>
+          <div className="mb-3"><label className="form-label">Senha</label>
+            <input className="form-control" type="password" value={form.senha} required onChange={e => setForm({...form, senha: e.target.value})} /></div>
+          <button className="btn btn-success w-100" disabled={load}>{load ? 'Entrando...' : 'Entrar'}</button>
+        </form>
+      </div>
+    </div>
+  )
 }
 
 export default function App() {
-
   const [usuario,    setUsuario]    = useState(JSON.parse(localStorage.getItem('usuario') || 'null'))
-  const [pagina,     setPagina]     = useState('estacoes')
+  const [aba,        setAba]        = useState('dashboard')
   const [estacoes,   setEstacoes]   = useState([])
   const [tipos,      setTipos]      = useState([])
   const [parametros, setParametros] = useState([])
   const [alertas,    setAlertas]    = useState([])
   const [usuarios,   setUsuarios]   = useState([])
   const [medicoes,   setMedicoes]   = useState([])
+  const [flashes,    setFlashes]    = useState([])
+  const medicoesVistas = useRef(new Set())
 
-  // BUSCA INICIAL — roda ao fazer login
   useEffect(function() {
     if (!usuario) return
     buscar('/estacoes',   setEstacoes)
@@ -60,114 +78,78 @@ export default function App() {
     buscar('/medicoes',   setMedicoes)
   }, [usuario?.id])
 
-  // ATUALIZAÇÃO AUTOMÁTICA DAS MEDIÇÕES — a cada 10 segundos
-  // useEffect com setInterval garante que as medições sempre estejam atualizadas
-  // clearInterval no return = limpa o intervalo quando o componente desmonta (logout)
   useEffect(function() {
     if (!usuario) return
-    const intervalo = setInterval(function() {
-      buscar('/medicoes', setMedicoes)
-      // atualiza alertas também para mostrar os disparados pelo receptor Python
+    const t = setInterval(function() {
       buscar('/alertas', setAlertas)
-    }, INTERVALO_MEDICOES)
-    return function() { clearInterval(intervalo) }
+      api('/medicoes').then(function(novas) {
+        if (!Array.isArray(novas)) return
+        setMedicoes(novas)
+        novas.forEach(function(m) {
+          if (medicoesVistas.current.has(m.id)) return
+          medicoesVistas.current.add(m.id)
+        })
+      })
+    }, INTERVALO)
+    return function() { clearInterval(t) }
   }, [usuario?.id])
-
-  async function entrar(email, senha) {
-    const r = await api('/auth/login', 'POST', { email, senha })
-    if (r.erro) return r.erro
-    localStorage.setItem('token',   r.token)
-    localStorage.setItem('usuario', JSON.stringify(r.usuario))
-    setUsuario(r.usuario)
-    return null
-  }
 
   function sair() { localStorage.clear(); setUsuario(null) }
 
-  const crud = {
-    salvarEstacaoComRetorno: async function(id, f) {
-      const r = id ? await api('/estacoes/'+id,'PUT',f) : await api('/estacoes','POST',f)
-      buscar('/estacoes', setEstacoes)
-      return r
-    },
-    salvarEstacao:    async function(id, f) { id ? await api('/estacoes/'+id,'PUT',f)  : await api('/estacoes','POST',f);   buscar('/estacoes',   setEstacoes)   },
-    deletarEstacao:   async function(id)    { if (!confirm('Deletar estação?')) return; await api('/estacoes/'+id,'DELETE'); buscar('/estacoes',   setEstacoes)   },
-
-    salvarTipo: async function(id, f) {
-      if (id) { await api('/tipos/'+id, 'PUT', f) }
-      else    { await api('/tipos',     'POST', f) }
-      await api('/tipos').then(function(dados) { setTipos(Array.isArray(dados) ? dados : []) })
-    },
-    salvarTipoComRetorno: async function(f) {
-      const r = await api('/tipos', 'POST', f)
-      await api('/tipos').then(function(dados) { setTipos(Array.isArray(dados) ? dados : []) })
-      return r
-    },
-    deletarTipo:      async function(id)    { if (!confirm('Deletar tipo?')) return;    await api('/tipos/'+id,'DELETE');    buscar('/tipos',      setTipos)      },
-
-    salvarParametro: async function(f) {
-      await api('/parametros', 'POST', f)
-      await api('/parametros').then(function(dados) { setParametros(Array.isArray(dados) ? dados : []) })
-    },
-    deletarParametro:     async function(id) { await api('/parametros/'+id,'DELETE');                                         buscar('/parametros', setParametros) },
-    recarregarParametros: function()         { buscar('/parametros', setParametros) },
-
-    salvarAlerta:     async function(id, f) { id ? await api('/alertas/'+id,'PUT',f)   : await api('/alertas','POST',f);   buscar('/alertas',    setAlertas)    },
-    deletarAlerta:    async function(id)    { if (!confirm('Deletar alerta?')) return;  await api('/alertas/'+id,'DELETE');  buscar('/alertas',    setAlertas)    },
-    salvarUsuario:    async function(id, f) { id ? await api('/usuarios/'+id,'PUT',f)  : await api('/usuarios','POST',f);  buscar('/usuarios',   setUsuarios)   },
-    deletarUsuario:   async function(id)    { if (!confirm('Deletar usuário?')) return; await api('/usuarios/'+id,'DELETE'); buscar('/usuarios',   setUsuarios)   },
-  }
-
-  if (!usuario) return <Login onEntrar={entrar} />
+  if (!usuario) return <Login onEntrar={setUsuario} />
 
   const ehAdmin = usuario.nivel === 'admin'
-
   const abas = [
+    { id: 'dashboard',  texto: 'Dashboard'  },
     { id: 'estacoes',   texto: 'Estações'   },
     { id: 'parametros', texto: 'Parâmetros' },
     { id: 'alertas',    texto: 'Alertas'    },
     { id: 'medicoes',   texto: 'Medições'   },
-    { id: 'usuarios',   texto: 'Usuários',  soAdmin: true },
+    { id: 'usuarios',   texto: 'Usuários', soAdmin: true },
   ]
 
-  const estiloAba = { color: '#ffffff', cursor: 'pointer', fontSize: 14, userSelect: 'none' }
+  const crud = {
+    salvarEstacaoComRetorno: async function(id, f) { const r = id ? await api('/estacoes/'+id,'PUT',f) : await api('/estacoes','POST',f); buscar('/estacoes', setEstacoes); return r },
+    salvarEstacao:    async function(id, f) { id ? await api('/estacoes/'+id,'PUT',f)  : await api('/estacoes','POST',f);   buscar('/estacoes',   setEstacoes)   },
+    deletarEstacao:   async function(id)    { if (!confirm('Deletar estação?')) return; await api('/estacoes/'+id,'DELETE'); buscar('/estacoes',   setEstacoes)   },
+    salvarTipo:       async function(id, f) { id ? await api('/tipos/'+id,'PUT',f) : await api('/tipos','POST',f); api('/tipos').then(d => setTipos(Array.isArray(d)?d:[])) },
+    salvarTipoComRetorno: async function(f) { const r = await api('/tipos','POST',f); api('/tipos').then(d => setTipos(Array.isArray(d)?d:[])); return r },
+    deletarTipo:      async function(id)    { if (!confirm('Deletar tipo?')) return; await api('/tipos/'+id,'DELETE'); buscar('/tipos', setTipos) },
+    salvarParametro:  async function(f)     { await api('/parametros','POST',f); api('/parametros').then(d => setParametros(Array.isArray(d)?d:[])) },
+    deletarParametro: async function(id)    { await api('/parametros/'+id,'DELETE'); buscar('/parametros', setParametros) },
+    recarregarParametros: function()        { buscar('/parametros', setParametros) },
+    salvarAlerta:     async function(id, f) { id ? await api('/alertas/'+id,'PUT',f) : await api('/alertas','POST',f); buscar('/alertas', setAlertas) },
+    deletarAlerta:    async function(id)    { if (!confirm('Deletar alerta?')) return; await api('/alertas/'+id,'DELETE'); buscar('/alertas', setAlertas) },
+    salvarUsuario:    async function(id, f) { id ? await api('/usuarios/'+id,'PUT',f) : await api('/usuarios','POST',f); buscar('/usuarios', setUsuarios) },
+    deletarUsuario:   async function(id)    { if (!confirm('Deletar usuário?')) return; await api('/usuarios/'+id,'DELETE'); buscar('/usuarios', setUsuarios) },
+  }
 
   return (
     <>
-      <nav className="navbar px-3 d-flex justify-content-between align-items-center"
-        style={{ background: '#146c43' }}>
+      <nav className="navbar px-3 d-flex justify-content-between align-items-center" style={{ background: '#146c43' }}>
         <span style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>
           <i className="bi bi-cloud me-2"></i>EnviroSense
         </span>
         <div className="d-flex gap-3 align-items-center">
-          {abas.map(function(aba) {
-            if (aba.soAdmin && !ehAdmin) return null
+          {abas.map(function(a) {
+            if (a.soAdmin && !ehAdmin) return null
             return (
-              <span key={aba.id}
-                onClick={function() { setPagina(aba.id) }}
-                style={{ ...estiloAba, fontWeight: pagina === aba.id ? 'bold' : 'normal' }}>
-                {aba.texto}
-                {/* ponto indicador de medições novas */}
-                {aba.id === 'medicoes' && medicoes.length > 0 && pagina !== 'medicoes' && (
-                  <span style={{
-                    width: 6, height: 6, borderRadius: '50%',
-                    background: '#86efac', display: 'inline-block',
-                    marginLeft: 4, verticalAlign: 'middle'
-                  }}></span>
-                )}
+              <span key={a.id} onClick={function() { setAba(a.id) }}
+                style={{ color: '#fff', cursor: 'pointer', fontSize: 14, userSelect: 'none', fontWeight: aba === a.id ? 'bold' : 'normal' }}>
+                {a.texto}
               </span>
             )
           })}
-          <span onClick={sair} style={estiloAba}>Sair</span>
+          <span onClick={sair} style={{ color: '#fff', cursor: 'pointer', fontSize: 14, userSelect: 'none' }}>Sair</span>
         </div>
       </nav>
-
       <div className="container-fluid p-4" style={{ maxWidth: 1200 }}>
-        {pagina === 'estacoes'   && <Estacoes   estacoes={estacoes} parametros={parametros} tipos={tipos} ehAdmin={ehAdmin} crud={crud} />}
-        {pagina === 'parametros' && <Parametros tipos={tipos} ehAdmin={ehAdmin} crud={crud} />}
-        {pagina === 'alertas'    && <Alertas    alertas={alertas} estacoes={estacoes} parametros={parametros} ehAdmin={ehAdmin} crud={crud} />}
-        {pagina === 'medicoes'   && <Medicoes   medicoes={medicoes} estacoes={estacoes} />}
-        {pagina === 'usuarios'   && <Usuarios   usuarios={usuarios} usuarioLogado={usuario} crud={crud} />}
+        {aba === 'dashboard'  && <Dashboard  medicoes={medicoes} estacoes={estacoes} />}
+        {aba === 'estacoes'   && <Estacoes   estacoes={estacoes} parametros={parametros} tipos={tipos} ehAdmin={ehAdmin} crud={crud} />}
+        {aba === 'parametros' && <Parametros tipos={tipos} ehAdmin={ehAdmin} crud={crud} />}
+        {aba === 'alertas'    && <Alertas    alertas={alertas} estacoes={estacoes} parametros={parametros} ehAdmin={ehAdmin} crud={crud} />}
+        {aba === 'medicoes'   && <Medicoes   medicoes={medicoes} estacoes={estacoes} />}
+        {aba === 'usuarios'   && <Usuarios   usuarios={usuarios} usuarioLogado={usuario} crud={crud} />}
       </div>
     </>
   )
