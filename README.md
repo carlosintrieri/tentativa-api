@@ -34,6 +34,8 @@ Os dados coletados pelas estações são enviados periodicamente a um servidor c
 | Banco de Dados | PostgreSQL (Azure) + MongoDB |
 | Autenticação | JWT (jsonwebtoken + bcryptjs) |
 | IoT | Python + MQTT (broker.emqx.io) |
+| Gráficos | Chart.js |
+| Notificações | React Toastify |
 | Deploy | Azure App Service + GitHub Actions |
 
 ---
@@ -45,9 +47,12 @@ Simulador Python
     → publica via MQTT (broker.emqx.io)
         → Receptor Python recebe
             → salva na tabela medicoes (PostgreSQL Azure)
+            → salva no historico_medicoes (permanente)
             → atualiza alertas para crítico se valor extremo
                 → Backend Node.js expõe via API REST
                     → Frontend React busca a cada 10 segundos
+                        → Dashboard exibe gráficos Chart.js por parâmetro
+                        → Toastify dispara notificação para valores extremos
 ```
 
 ---
@@ -85,6 +90,13 @@ erDiagram
     decimal valor
     timestamp registrado_em
   }
+  historico_medicoes {
+    int id PK
+    int id_estacao FK
+    int id_parametro FK
+    decimal valor
+    timestamp registrado_em
+  }
   alertas {
     int id PK
     int id_estacao FK
@@ -102,12 +114,14 @@ erDiagram
     varchar perfil
   }
 
-  estacoes        ||--o{ parametros : tem
-  tipos_parametro ||--o{ parametros : define
-  estacoes        ||--o{ medicoes   : gera
-  parametros      ||--o{ medicoes   : mede
-  estacoes        ||--o{ alertas    : monitora
-  parametros      ||--o{ alertas    : dispara
+  estacoes        ||--o{ parametros         : tem
+  tipos_parametro ||--o{ parametros         : define
+  estacoes        ||--o{ medicoes           : gera
+  parametros      ||--o{ medicoes           : mede
+  estacoes        ||--o{ historico_medicoes : registra
+  parametros      ||--o{ historico_medicoes : registra
+  estacoes        ||--o{ alertas            : monitora
+  parametros      ||--o{ alertas            : dispara
 ```
 
 ---
@@ -133,6 +147,7 @@ envirosense/
 │   └── src/
 │       ├── App.jsx
 │       └── pages/
+│           ├── Dashboard.jsx
 │           ├── Estacoes.jsx
 │           ├── Parametros.jsx
 │           ├── Medicoes.jsx
@@ -149,9 +164,12 @@ envirosense/
 
 ### Pré-requisitos
 
-- Node.js instalado
-- PostgreSQL instalado e rodando
-- Python 3 instalado
+- Node.js 18 ou superior instalado
+- Python 3.10 ou superior instalado
+- PostgreSQL instalado e rodando (ou acesso ao Azure PostgreSQL)
+- Conta no MongoDB Atlas (ou MongoDB local)
+
+---
 
 ### Backend
 
@@ -163,15 +181,16 @@ cd backend
 **2. Instale as dependências:**
 ```bash
 npm install
-npm install dotenv express
 ```
+
+As dependências instaladas incluem: `express`, `dotenv`, `pg`, `pg-pool`, `mongoose`, `jsonwebtoken`, `bcryptjs`, `cors`.
 
 **3. Crie o arquivo `.env` a partir do exemplo:**
 ```bash
 copy .env.example .env
 ```
 
-**4. Abra o `.env` e preencha com sua senha do banco:**
+**4. Abra o `.env` e preencha com suas credenciais:**
 ```
 PG_HOST=localhost
 PG_PORT=5432
@@ -207,34 +226,66 @@ cd frontend
 **2. Instale as dependências:**
 ```bash
 npm install
-npm i vite
 ```
 
-**3. Inicie o servidor de desenvolvimento:**
+As dependências instaladas incluem: `react`, `react-dom`, `vite`, `@vitejs/plugin-react`, `bootstrap`, `bootstrap-icons`, `chart.js`, `react-toastify`.
+
+**3. Se precisar instalar dependências individualmente:**
+```bash
+npm install chart.js
+npm install react-toastify
+npm install bootstrap bootstrap-icons
+```
+
+**4. Para rodar em modo de desenvolvimento:**
 ```bash
 npm start
 ```
 
 O frontend estará disponível em `http://localhost:5173`
 
+**5. Para gerar o build de produção:**
+```bash
+npm run build
+```
+
+O build gerado em `dist/` é servido automaticamente pelo backend em `http://localhost:3001`
+
 ---
 
 ### MQTT (IoT)
 
-**Instale as dependências Python:**
+**1. Instale as dependências Python:**
 ```bash
 pip install paho-mqtt psycopg2-binary python-dotenv requests
 ```
 
-**Terminal 1 — Receptor:**
+**2. Terminal 1 — Receptor (inicia primeiro):**
 ```bash
-cd mqtt && python receptor.py
+cd mqtt
+python receptor.py
 ```
 
-**Terminal 2 — Simulador:**
+**3. Terminal 2 — Simulador:**
 ```bash
-cd mqtt && python simulador.py
+cd mqtt
+python simulador.py
 ```
+
+O receptor precisa estar rodando antes do simulador. O simulador publica medições a cada 10 segundos via MQTT e o receptor salva no PostgreSQL.
+
+---
+
+### Ordem de inicialização recomendada
+
+```
+Terminal 1 → cd backend  && node server.js
+Terminal 2 → cd mqtt     && python receptor.py
+Terminal 3 → cd mqtt     && python simulador.py
+Terminal 4 → cd frontend && npm start   (desenvolvimento)
+```
+
+Em produção, o frontend já está embutido no build servido pelo backend na porta 3001.
 
 ---
 
@@ -311,7 +362,7 @@ cd mqtt && python simulador.py
 | # | História de Usuário | Critérios de Aceitação | Prioridade | Estimativa |
 |---|---------------------|------------------------|------------|------------|
 | 12 | Como administrador, quero configurar alertas baseados em limites de parâmetros meteorológicos, para ser notificado automaticamente em situações críticas. | CRUD de alertas; definição de parâmetro e valor limite; associação a uma estação específica. | 1 | 7 |
-| 13 | Como usuário público, quero receber notificações de alertas ativos no portal, para me manter informado sobre condições climáticas extremas. | Exibição de alertas ativos na interface; indicação do parâmetro e estação afetada. | 2 | 4 |
+| 13 | Como usuário público, quero receber notificações de alertas ativos no portal, para me manter informado sobre condições climáticas extremas. | Exibição de alertas ativos na interface via Toastify; indicação do parâmetro, estação afetada e valor extremo detectado. | 2 | 4 |
 
 ---
 
@@ -329,8 +380,8 @@ cd mqtt && python simulador.py
 
 | # | História de Usuário | Critérios de Aceitação | Prioridade | Estimativa |
 |---|---------------------|------------------------|------------|------------|
-| 17 | Como time de desenvolvimento, quero um pipeline de integração contínua configurado, para automatizar testes e validações a cada push. | CI rodando em Pull Requests; testes automatizados obrigatórios para merge; relatório de cobertura. | 1 | 5 |
-| 18 | Como time de desenvolvimento, quero deploy automatizado configurado por ambiente, para garantir entregas consistentes e sem intervenção manual. | Deploy automático em staging a cada merge na main; deploy em produção com aprovação manual. | 2 | 6 |
+| 17 | Como time de desenvolvimento, quero um pipeline de integração contínua configurado, para automatizar testes e validações a cada push. | CI rodando a cada push na main; testes automatizados obrigatórios antes do deploy; relatório de cobertura. | 1 | 5 |
+| 18 | Como time de desenvolvimento, quero deploy automatizado configurado por ambiente, para garantir entregas consistentes e sem intervenção manual. | Deploy automático no Azure App Service a cada merge na main via GitHub Actions. | 2 | 6 |
 | 19 | Como desenvolvedor externo, quero uma documentação completa da API, para integrar outros sistemas ao EnviroSense. | Documentação de todas as rotas com exemplos de request/response; disponível via Swagger ou Postman. | 2 | 4 |
 
 ---
@@ -341,7 +392,6 @@ cd mqtt && python simulador.py
 |--------|---------|---------|
 | Sprint 1 | 08/04/2026 | CRUD de Estações, Tipos de Parâmetros, Parâmetros, Alertas e Usuários |
 | Sprint 2 | 06/05/2026 | Autenticação JWT, modal em 2 etapas, vinculação de tipos às estações |
-
----
+| Sprint 3 | 27/05/2026 | Alertas em tempo real via MQTT com escalamento automático para crítico, aba de Medições alimentada pelo receptor Python com histórico permanente em tabela separada, aba Dashboard com gráficos em tempo real por parâmetro usando Chart.js e notificações Toastify para valores extremos |
 
 Desenvolvido por Equipe Lone Wolf · Fatec São José dos Campos · 2026
