@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { toast, ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 import Estacoes   from './pages/Estacoes'
 import Parametros from './pages/Parametros'
 import Alertas    from './pages/Alertas'
@@ -6,10 +8,61 @@ import Medicoes   from './pages/Medicoes'
 import Usuarios   from './pages/Usuarios'
 import Dashboard  from './pages/Dashboard'
 
-const BASE_URL      = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-const INTERVALO     = 10000
-const CINCO_MIN_MS  = 5 * 60 * 1000
-const CINCO_MIN_SEG = 5 * 60
+const BASE_URL  = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const INTERVALO = 10000
+
+// limites por tipo de parametro — valores acima ou abaixo disparam o toast
+const LIMITES = {
+  temperatura: { max: 38,   min: 5,   unidade: '°C',  iconeMax: '🔥', iconeMin: '🥶' },
+  umidade:     { max: 90,   min: 20,  unidade: '%',   iconeMax: '💧', iconeMin: '🏜️' },
+  pressao:     { max: 1030, min: 980, unidade: 'hPa', iconeMax: '⬆️', iconeMin: '⬇️' },
+  chuva:       { max: 60,   min: null, unidade: 'mm', iconeMax: '🌧️', iconeMin: null },
+  vento:       { max: 90,   min: null, unidade: 'km/h', iconeMax: '🌪️', iconeMin: null },
+}
+
+// identifica o tipo do parametro pelo nome
+function detectarChave(nome) {
+  if (!nome) return null
+  const n = nome.toLowerCase()
+  if (n.includes('temperatura')) return 'temperatura'
+  if (n.includes('umidade'))     return 'umidade'
+  if (n.includes('pressao') || n.includes('pressão')) return 'pressao'
+  if (n.includes('chuva'))       return 'chuva'
+  if (n.includes('vento'))       return 'vento'
+  return null
+}
+
+// dispara o toast verde musgo se o valor for extremo
+function verificarExtremo(medicao) {
+  const chave = detectarChave(medicao.nome_parametro)
+  if (!chave) return
+  const lim = LIMITES[chave]
+  const v   = Number(medicao.valor)
+
+  if (lim.max !== null && v > lim.max) {
+    toast(
+      `${lim.iconeMax} ${medicao.nome_estacao} — ${medicao.nome_parametro}: ${v.toFixed(1)} ${lim.unidade} (máximo: ${lim.max})`,
+      {
+        style:           { background: '#146c43', color: '#fff', fontWeight: 500 },
+        progressStyle:   { background: 'rgba(255,255,255,0.4)' },
+        icon:            false,
+        autoClose:       8000,
+        position:        'bottom-right',
+      }
+    )
+  } else if (lim.min !== null && v < lim.min) {
+    toast(
+      `${lim.iconeMin} ${medicao.nome_estacao} — ${medicao.nome_parametro}: ${v.toFixed(1)} ${lim.unidade} (mínimo: ${lim.min})`,
+      {
+        style:           { background: '#146c43', color: '#fff', fontWeight: 500 },
+        progressStyle:   { background: 'rgba(255,255,255,0.4)' },
+        icon:            false,
+        autoClose:       8000,
+        position:        'bottom-right',
+      }
+    )
+  }
+}
 
 async function api(rota, metodo, dados) {
   const cabecalho = { Authorization: 'Bearer ' + localStorage.getItem('token') }
@@ -65,7 +118,6 @@ export default function App() {
   const [alertas,    setAlertas]    = useState([])
   const [usuarios,   setUsuarios]   = useState([])
   const [medicoes,   setMedicoes]   = useState([])
-  const [flashes,    setFlashes]    = useState([])
   const medicoesVistas = useRef(new Set())
 
   useEffect(function() {
@@ -85,9 +137,11 @@ export default function App() {
       api('/medicoes').then(function(novas) {
         if (!Array.isArray(novas)) return
         setMedicoes(novas)
+        // verifica cada medicao nova — se for extremo dispara o toast
         novas.forEach(function(m) {
           if (medicoesVistas.current.has(m.id)) return
           medicoesVistas.current.add(m.id)
+          verificarExtremo(m)
         })
       })
     }, INTERVALO)
@@ -143,6 +197,7 @@ export default function App() {
           <span onClick={sair} style={{ color: '#fff', cursor: 'pointer', fontSize: 14, userSelect: 'none' }}>Sair</span>
         </div>
       </nav>
+
       <div className="container-fluid p-4" style={{ maxWidth: 1200 }}>
         {aba === 'dashboard'  && <Dashboard  medicoes={medicoes} estacoes={estacoes} />}
         {aba === 'estacoes'   && <Estacoes   estacoes={estacoes} parametros={parametros} tipos={tipos} ehAdmin={ehAdmin} crud={crud} />}
@@ -151,6 +206,15 @@ export default function App() {
         {aba === 'medicoes'   && <Medicoes   medicoes={medicoes} estacoes={estacoes} />}
         {aba === 'usuarios'   && <Usuarios   usuarios={usuarios} usuarioLogado={usuario} crud={crud} />}
       </div>
+
+      {/* toasts aparecem no canto inferior direito em verde musgo */}
+      <ToastContainer
+        position="bottom-right"
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        limit={5}
+      />
     </>
   )
 }
