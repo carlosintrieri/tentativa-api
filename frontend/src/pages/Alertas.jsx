@@ -1,4 +1,4 @@
-// Alertas.jsx — CRUD de alertas vinculados a estacao + parametro
+// Alertas.jsx — CRUD de alertas + historico de criticos do MongoDB
 
 import { useState } from 'react'
 
@@ -6,7 +6,7 @@ const FORM_VAZIO = {
   id_estacao: '', id_parametro: '', severidade: 'info', mensagem: '', ativo: true
 }
 
-export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud }) {
+export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud, logsAlertas }) {
 
   const [mostrarModal,     setMostrarModal]     = useState(false)
   const [idAlertaEditando, setIdAlertaEditando] = useState(null)
@@ -50,9 +50,16 @@ export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud }
     setFormulario(function(prev) { return { ...prev, [key]: val } })
   }
 
+  function formatarData(dataStr) {
+    if (!dataStr) return '—'
+    const d = new Date(dataStr)
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR')
+  }
+
   return (
     <div>
 
+      {/* CABEÇALHO */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h4 className="mb-0"><i className="bi bi-bell me-2"></i>Alertas</h4>
         {ehAdmin && (
@@ -62,7 +69,8 @@ export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud }
         )}
       </div>
 
-      <div className="card">
+      {/* TABELA DE ALERTAS ATIVOS */}
+      <div className="card mb-4">
         <div className="table-responsive">
           <table className="table table-hover mb-0">
             <thead className="table-light">
@@ -119,6 +127,7 @@ export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud }
         </div>
       </div>
 
+      {/* MODAL */}
       {mostrarModal && (
         <div className="modal d-block" style={{ background: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog"><div className="modal-content">

@@ -9,18 +9,16 @@ import Usuarios   from './pages/Usuarios'
 import Dashboard  from './pages/Dashboard'
 
 const BASE_URL  = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-const INTERVALO = 10000
+const INTERVALO = 100000
 
-// limites por tipo de parametro — valores acima ou abaixo disparam o toast
 const LIMITES = {
-  temperatura: { max: 38,   min: 5,   unidade: '°C',  iconeMax: '🔥', iconeMin: '🥶' },
-  umidade:     { max: 90,   min: 20,  unidade: '%',   iconeMax: '💧', iconeMin: '🏜️' },
-  pressao:     { max: 1030, min: 980, unidade: 'hPa', iconeMax: '⬆️', iconeMin: '⬇️' },
-  chuva:       { max: 60,   min: null, unidade: 'mm', iconeMax: '🌧️', iconeMin: null },
+  temperatura: { max: 38,   min: 5,    unidade: '°C',   iconeMax: '🔥', iconeMin: '🥶' },
+  umidade:     { max: 90,   min: 20,   unidade: '%',    iconeMax: '💧', iconeMin: '🏜️' },
+  pressao:     { max: 1030, min: 980,  unidade: 'hPa',  iconeMax: '⬆️', iconeMin: '⬇️' },
+  chuva:       { max: 60,   min: null, unidade: 'mm',   iconeMax: '🌧️', iconeMin: null },
   vento:       { max: 90,   min: null, unidade: 'km/h', iconeMax: '🌪️', iconeMin: null },
 }
 
-// identifica o tipo do parametro pelo nome
 function detectarChave(nome) {
   if (!nome) return null
   const n = nome.toLowerCase()
@@ -32,35 +30,32 @@ function detectarChave(nome) {
   return null
 }
 
-// dispara o toast verde musgo se o valor for extremo
 function verificarExtremo(medicao) {
   const chave = detectarChave(medicao.nome_parametro)
   if (!chave) return
   const lim = LIMITES[chave]
   const v   = Number(medicao.valor)
- 
+
   if (lim.max !== null && v > lim.max) {
     toast(
-      // o iconeMax mostra os emojis direto do Unicode!
       `${lim.iconeMax} ${medicao.nome_estacao} — ${medicao.nome_parametro}: ${v.toFixed(1)} ${lim.unidade} (máximo: ${lim.max})`,
       {
-        style:           { background: '#146c43', color: '#fff', fontWeight: 500 },
-        progressStyle:   { background: 'rgba(255,255,255,0.4)' },
-        icon:            false,
-        autoClose:       8000,
-        position:        'bottom-right',
+        style:         { background: '#146c43', color: '#fff', fontWeight: 500 },
+        progressStyle: { background: 'rgba(255,255,255,0.4)' },
+        icon:          false,
+        autoClose:     15000,
+        position:      'bottom-right',
       }
     )
-    // o iconeMin é usado por Unicode para mostrar o emoji
   } else if (lim.min !== null && v < lim.min) {
     toast(
       `${lim.iconeMin} ${medicao.nome_estacao} — ${medicao.nome_parametro}: ${v.toFixed(1)} ${lim.unidade} (mínimo: ${lim.min})`,
       {
-        style:           { background: '#146c43', color: '#fff', fontWeight: 500 },
-        progressStyle:   { background: 'rgba(255,255,255,0.4)' },
-        icon:            false,
-        autoClose:       8000,
-        position:        'bottom-right',
+        style:         { background: '#146c43', color: '#fff', fontWeight: 500 },
+        progressStyle: { background: 'rgba(255,255,255,0.4)' },
+        icon:          false,
+        autoClose:     15000,
+        position:      'bottom-right',
       }
     )
   }
@@ -120,7 +115,11 @@ export default function App() {
   const [alertas,    setAlertas]    = useState([])
   const [usuarios,   setUsuarios]   = useState([])
   const [medicoes,   setMedicoes]   = useState([])
-  const medicoesVistas = useRef(new Set())
+
+  // persiste IDs ja vistas no localStorage para nao disparar toast ao recarregar a pagina
+  const medicoesVistas = useRef(new Set(
+    JSON.parse(localStorage.getItem('medicoesVistas') || '[]')
+  ))
 
   useEffect(function() {
     if (!usuario) return
@@ -139,10 +138,13 @@ export default function App() {
       api('/medicoes').then(function(novas) {
         if (!Array.isArray(novas)) return
         setMedicoes(novas)
-        // verifica cada medicao nova — se for extremo dispara o toast
         novas.forEach(function(m) {
           if (medicoesVistas.current.has(m.id)) return
+          // marca como vista e persiste no localStorage
           medicoesVistas.current.add(m.id)
+          localStorage.setItem('medicoesVistas',
+            JSON.stringify([...medicoesVistas.current])
+          )
           verificarExtremo(m)
         })
       })
@@ -150,7 +152,11 @@ export default function App() {
     return function() { clearInterval(t) }
   }, [usuario?.id])
 
-  function sair() { localStorage.clear(); setUsuario(null) }
+  function sair() {
+    // limpa tudo incluindo medicoesVistas ao sair
+    localStorage.clear()
+    setUsuario(null)
+  }
 
   if (!usuario) return <Login onEntrar={setUsuario} />
 
@@ -209,14 +215,7 @@ export default function App() {
         {aba === 'usuarios'   && <Usuarios   usuarios={usuarios} usuarioLogado={usuario} crud={crud} />}
       </div>
 
-      {/* toasts aparecem no canto inferior direito em verde musgo */}
-      <ToastContainer
-        position="bottom-right"
-        newestOnTop
-        closeOnClick
-        pauseOnHover
-        limit={5}
-      />
+      <ToastContainer position="bottom-right" newestOnTop closeOnClick pauseOnHover limit={3} />
     </>
   )
 }

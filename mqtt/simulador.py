@@ -9,7 +9,7 @@ from datetime import datetime
 BROKER    = 'broker.emqx.io'
 PORTA     = 1883
 TOPICO    = 'envirosense/medicoes'
-INTERVALO = 10
+INTERVALO = 300
 
 API_URL = os.getenv('API_URL', 'http://localhost:3001')
 EMAIL   = os.getenv('API_EMAIL', 'admin@enviro.com')

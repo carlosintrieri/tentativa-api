@@ -2,7 +2,7 @@
 # tudo em um arquivo so: conexao, queries SQL, logica de alertas e MQTT
 
 import paho.mqtt.client as mqtt
-import psycopg2, json, os
+import psycopg2, json, os, requests
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -11,6 +11,9 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '..', 'backend', '.env'))
 BROKER = 'broker.emqx.io'
 PORTA  = 1883
 TOPICO = 'envirosense/medicoes'
+
+# url do backend para salvar logs no MongoDB
+API_URL = os.getenv('API_URL', 'http://localhost:3001')
 
 # configuracao do banco lida do .env
 BANCO = {
@@ -49,7 +52,6 @@ MENSAGENS = {
 
 # ── funções de banco ──────────────────────────────────────────────────────────
 
-# roda qualquer comando SQL e devolve as linhas encontradas
 def sql(sessao, comando, valores=()):
     cursor = sessao.cursor()
     cursor.execute(comando, valores)
@@ -58,13 +60,11 @@ def sql(sessao, comando, valores=()):
     cursor.close()
     return linhas
 
-# busca estacao pelo uid — devolve (id, nome) ou None
 def buscar_estacao(sessao, uid):
     resultado = sql(sessao,
-        'SELECT id, nome FROM estacoes WHERE uid = %s AND ativo = true', (uid,))
+        'SELECT id, nome, uid FROM estacoes WHERE uid = %s AND ativo = true', (uid,))
     return resultado[0] if resultado else None
 
-# busca id do parametro pelo nome dentro de uma estacao
 def buscar_parametro(sessao, id_estacao, nome_parametro):
     resultado = sql(sessao, '''
         SELECT parametros.id
@@ -74,38 +74,53 @@ def buscar_parametro(sessao, id_estacao, nome_parametro):
     ''', (id_estacao, nome_parametro))
     return resultado[0][0] if resultado else None
 
-# salva medicao na tabela temporaria — apagada a cada 5 minutos pelo frontend
 def salvar_medicao(sessao, id_estacao, id_parametro, valor):
     sql(sessao,
         'INSERT INTO medicoes (id_estacao, id_parametro, valor) VALUES (%s, %s, %s)',
         (id_estacao, id_parametro, valor))
 
-# salva medicao no historico permanente — nunca apagado, visivel no pgAdmin
 def salvar_historico(sessao, id_estacao, id_parametro, valor):
     sql(sessao,
         'INSERT INTO historico_medicoes (id_estacao, id_parametro, valor) VALUES (%s, %s, %s)',
         (id_estacao, id_parametro, valor))
 
-# apaga medicoes com mais de 5 minutos da tabela temporaria
 def limpar_antigas(sessao):
     sql(sessao,
         "DELETE FROM medicoes WHERE registrado_em < NOW() - INTERVAL '5 minutes'")
 
-# busca alertas para esta estacao e parametro
 def buscar_alertas(sessao, id_estacao, id_parametro):
     return sql(sessao,
         'SELECT id, mensagem FROM alertas WHERE id_estacao=%s AND id_parametro=%s',
         (id_estacao, id_parametro))
 
-# atualiza alerta para critico com nova mensagem
 def escalar_critico(sessao, id_alerta, nova_mensagem):
     sql(sessao,
         'UPDATE alertas SET severidade=%s, mensagem=%s, ativo=true WHERE id=%s',
         ('critico', nova_mensagem, id_alerta))
 
+# ── log no MongoDB via API ────────────────────────────────────────────────────
+
+# salva log do alerta critico no MongoDB via rota do backend
+# usa requests para chamar a API — sem depender de driver Mongo no Python
+def salvar_log_mongodb(nome_estacao, uid, nome_parametro, valor, mensagem):
+    try:
+        requests.post(
+            f'{API_URL}/logs-alertas/interno',
+            json={
+                'estacao':   nome_estacao,
+                'uid':       uid,
+                'parametro': nome_parametro,
+                'valor':     float(valor),
+                'mensagem':  mensagem
+            },
+            timeout=3
+        )
+        print(f'  📝 Log salvo no MongoDB: {nome_estacao} | {nome_parametro} = {valor}')
+    except Exception as erro:
+        print(f'  [AVISO] Nao foi possivel salvar log no MongoDB: {erro}')
+
 # ── logica de alertas ─────────────────────────────────────────────────────────
 
-# identifica o tipo do parametro pelo nome
 def detectar_chave(nome):
     if not nome: return None
     n = nome.lower()
@@ -116,13 +131,12 @@ def detectar_chave(nome):
     if 'vento'       in n: return 'vento'
     return None
 
-# verifica se algum alerta deve virar critico
-def verificar_alerta(sessao, id_estacao, id_parametro, nome, valor):
-    alertas  = buscar_alertas(sessao, id_estacao, id_parametro)
-    chave    = detectar_chave(nome)
+def verificar_alerta(sessao, id_estacao, id_parametro, nome, valor, nome_estacao, uid):
+    alertas   = buscar_alertas(sessao, id_estacao, id_parametro)
+    chave     = detectar_chave(nome)
     if not chave: return
 
-    limites  = LIMITES[chave]
+    limites   = LIMITES[chave]
     mensagens = MENSAGENS.get(chave, {})
     v         = float(valor)
 
@@ -130,21 +144,20 @@ def verificar_alerta(sessao, id_estacao, id_parametro, nome, valor):
         msg  = (mensagem or '').lower()
         nova = None
 
-        # palavras de situacao alta + valor acima do maximo
         if any(p in msg for p in PALAVRAS_ALTA) and limites['max'] and v > limites['max']:
             nova = mensagens.get('max')
 
-        # palavras de situacao baixa + valor abaixo do minimo
         if any(p in msg for p in PALAVRAS_BAIXA) and limites['min'] and v < limites['min']:
             nova = mensagens.get('min')
 
         if nova:
             escalar_critico(sessao, id_alerta, nova)
             print(f'  ⚠ Alerta #{id_alerta} → CRITICO: {nova}')
+            # salva log permanente no MongoDB
+            salvar_log_mongodb(nome_estacao, uid, nome, valor, nova)
 
 # ── processamento principal ───────────────────────────────────────────────────
 
-# chamada a cada mensagem recebida do broker
 def processar(payload_str):
     try:
         dados = json.loads(payload_str)
@@ -161,31 +174,22 @@ def processar(payload_str):
     try:
         sessao = psycopg2.connect(**BANCO)
 
-        # 1. descobre qual estacao enviou
         estacao = buscar_estacao(sessao, uid)
         if not estacao:
             print(f'  [AVISO] {uid} nao encontrada')
             sessao.close(); return
-        id_estacao, nome_estacao = estacao
+        id_estacao, nome_estacao, uid_estacao = estacao
 
-        # 2. descobre qual parametro foi medido
         id_parametro = buscar_parametro(sessao, id_estacao, nome)
-
-        # 3. valor salvo direto — SEM multiplicar fator para nao distorcer
-        valor_real = round(float(valor), 4)
+        valor_real   = round(float(valor), 4)
         print(f'  → {nome_estacao} | {nome}: {valor_real}')
 
-        # 4. salva na tabela temporaria (frontend busca daqui)
         salvar_medicao(sessao, id_estacao, id_parametro, valor_real)
-
-        # 5. salva no historico permanente (visivel no pgAdmin)
         salvar_historico(sessao, id_estacao, id_parametro, valor_real)
-
-        # 6. apaga medicoes antigas da tabela temporaria
         limpar_antigas(sessao)
 
-        # 7. verifica se algum alerta deve virar critico
-        verificar_alerta(sessao, id_estacao, id_parametro, nome, valor_real)
+        # passa nome_estacao e uid para poder salvar o log no MongoDB
+        verificar_alerta(sessao, id_estacao, id_parametro, nome, valor_real, nome_estacao, uid_estacao)
 
         sessao.commit()
         sessao.close()
