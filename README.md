@@ -77,7 +77,7 @@ erDiagram
         varchar unidade
         decimal fator
         decimal valor_offset
-        json configuracao
+        json varchar(200)
     }
 
     usuarios {
