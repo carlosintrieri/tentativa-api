@@ -1,9 +1,9 @@
 // tipos.js — regras de negócio dos tipos de parâmetro
 
-function validarTipo({ nome, unidade, fator, valor_offset }) {
-  if (!nome || nome.trim() === '')     throw new Error('nome obrigatório')
+function validarTipo({ nome, unidade, fator }) {
+  if (!nome    || nome.trim()    === '') throw new Error('nome obrigatório')
   if (!unidade || unidade.trim() === '') throw new Error('unidade obrigatória')
-  if (fator === 0)                     throw new Error('fator não pode ser zero')
+  if (fator === 0)                       throw new Error('fator não pode ser zero')
   return true
 }
 

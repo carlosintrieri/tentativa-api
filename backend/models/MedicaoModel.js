@@ -41,6 +41,7 @@ function buscarPorEstacao(id_estacao) {
     ORDER BY medicoes.registrado_em DESC
     LIMIT 100
   `, [id_estacao])
+
 }
 
 // salva uma nova medicao

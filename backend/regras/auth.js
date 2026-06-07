@@ -1,6 +1,6 @@
 // auth.js — regras de negócio da autenticação
 
-const jwt = require('jsonwebtoken')
+const jwt  = require('jsonwebtoken')
 const CHAVE = process.env.JWT_SECRET || 'chave_secreta_qualquer'
 
 function verificarToken(token) {
