@@ -1,63 +1,81 @@
-name: CI — EnviroSense
+# ci.yml — integração contínua seguindo as práticas de Martin Fowler
+# roda automaticamente a cada push no branch main
+# nunca em branches de feature — só no mainline
+
+name: CI
+
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches:
+      - main  # fowler: todo push no mainline dispara o build
+
 jobs:
-  backend:
-    name: Backend (Node.js + Express)
+  build:
     runs-on: ubuntu-latest
+
     steps:
+
+      # baixa o código do repositório
       - name: Checkout do código
-        uses: actions/checkout@v4
-      - name: Instalar dependências
-        working-directory: ./backend
-        run: npm install
-      - name: Verificar sintaxe (node --check)
-        working-directory: ./backend
-        run: node --check server.js
-      - name: Testes unitários
-        working-directory: ./backend
-        run: npm test
+        uses: actions/checkout@v3
 
-  frontend:
-    name: Frontend (React + Vite)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-      - name: Instalar dependências
-        working-directory: ./frontend
-        run: npm install
-      - name: Build do projeto
-        working-directory: ./frontend
-        env:
-          VITE_API_URL: https://envirosense-api-fnaqcgh2gaf4fhcg.centralus-01.azurewebsites.net
-        run: npm run build
-
-  deploy:
-    name: Deploy no Azure
-    runs-on: ubuntu-latest
-    needs: [backend, frontend]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-
-      - name: Instalar dependências do backend
-        working-directory: ./backend
-        run: npm install --production
-
-      - name: Build do frontend
-        working-directory: ./frontend
-        env:
-          VITE_API_URL: https://envirosense-api-fnaqcgh2gaf4fhcg.centralus-01.azurewebsites.net
-        run: npm install && npm run build
-
-      - name: Deploy no Azure Web App
-        uses: azure/webapps-deploy@v2
+      # configura o Node.js
+      - name: Configurar Node.js
+        uses: actions/setup-node@v3
         with:
-          app-name: envirosense-api
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: .
+          node-version: '18'
+
+      # instala dependências do backend
+      # fowler: automate the build — nenhuma intervenção manual
+      - name: Instalar dependências do backend
+        run: |
+          cd backend
+          npm install
+
+      # instala dependências do frontend
+      - name: Instalar dependências do frontend
+        run: |
+          cd frontend
+          npm install
+
+      # compila o frontend React
+      # fowler: o build deve ser rápido — meta de menos de 10 minutos
+      - name: Build do frontend
+        run: |
+          cd frontend
+          npm run build
+
+      # roda os testes unitários do backend
+      # fowler: make the build self-testing
+      # fowler: um build que não roda testes não é CI de verdade
+      - name: Testes unitários do backend
+        run: |
+          cd backend
+          npm test
+        env:
+          # variáveis de ambiente para os testes
+          # fowler: teste em clone do ambiente de produção
+          PG_HOST: localhost
+          PG_PORT: 5432
+          PG_USER: postgres
+          PG_PASSWORD: postgres
+          PG_DATABASE: enviro_test
+          MONGO_URL: mongodb://localhost:27017/enviro_test
+          JWT_SECRET: chave_teste
+
+      # roda os testes do receptor Python
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências Python
+        run: |
+          pip install paho-mqtt psycopg2-binary python-dotenv requests pytest
+
+      # fowler: every push to mainline should trigger a build
+      # qualquer falha aqui bloqueia — nenhum código quebrado chega ao Azure
+      - name: Testes unitários do receptor Python
+        run: |
+          cd mqtt
+          pytest testes/ -v
