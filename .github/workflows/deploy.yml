@@ -1,0 +1,42 @@
+name: Deploy Manual
+
+# dispara só quando você clicar no botão no GitHub Actions
+on:
+  workflow_dispatch:
+    inputs:
+      versao:
+        description: 'Versão do deploy (ex: 1.0, 1.1)'
+        required: true
+        default: '1.0'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # baixa o código
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # cria a branch deploy/v1.0 automaticamente
+      - name: Criar branch de deploy
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git checkout -b deploy/v${{ github.event.inputs.versao }}
+          git push origin deploy/v${{ github.event.inputs.versao }}
+
+      # instala dependências e faz o build do frontend
+      - name: Instalar dependências frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
+      # faz o deploy no Azure App Service
+      - name: Deploy no Azure
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: envirosense-api-fnaqcgh2gaf4fhcg
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
+          package: .
