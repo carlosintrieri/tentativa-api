@@ -1,6 +1,3 @@
-# receptor.py — recebe mensagens MQTT e salva no banco
-# tudo em um arquivo so: conexao, queries SQL, logica de alertas e MQTT
-
 import paho.mqtt.client as mqtt
 import psycopg2, json, os, requests
 from datetime import datetime
@@ -8,14 +5,11 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', 'backend', '.env'))
 
-BROKER = 'broker.emqx.io'
-PORTA  = 1883
-TOPICO = 'envirosense/medicoes'
-
-# url do backend para salvar logs no MongoDB
+BROKER  = 'broker.emqx.io'
+PORTA   = 1883
+TOPICO  = 'envirosense/medicoes'
 API_URL = os.getenv('API_URL', 'http://localhost:3001')
 
-# configuracao do banco lida do .env
 BANCO = {
     'host':     os.getenv('PG_HOST'),
     'port':     int(os.getenv('PG_PORT', 5432)),
@@ -25,14 +19,6 @@ BANCO = {
     'sslmode':  'require'
 }
 
-# palavras que indicam situacao de valor alto
-PALAVRAS_ALTA  = ['alta', 'quente', 'calor', 'ventania', 'rajada',
-                  'chuvoso', 'tempestade', 'umido', 'úmido', 'enchente']
-
-# palavras que indicam situacao de valor baixo
-PALAVRAS_BAIXA = ['baixa', 'frio', 'gelado', 'seco', 'seca']
-
-# limites numericos por tipo de parametro
 LIMITES = {
     'temperatura': {'max': 38,   'min': 5},
     'umidade':     {'max': 90,   'min': 20},
@@ -41,7 +27,6 @@ LIMITES = {
     'vento':       {'max': 90,   'min': None},
 }
 
-# mensagens pre-fabricadas ao escalar para critico
 MENSAGENS = {
     'temperatura': {'max': 'Temperatura MUITO ALTA! 🔥',      'min': 'Temperatura BAIXÍSSIMA! 🥶'},
     'umidade':     {'max': 'Umidade ALTÍSSIMA! 🌬️',          'min': 'Umidade BAIXÍSSIMA!'},
@@ -50,8 +35,7 @@ MENSAGENS = {
     'vento':       {'max': 'Velocidade do vento ALTA DEMAIS!'},
 }
 
-# ── funções de banco ──────────────────────────────────────────────────────────
-
+# funções de banco
 def sql(sessao, comando, valores=()):
     cursor = sessao.cursor()
     cursor.execute(comando, valores)
@@ -90,7 +74,7 @@ def limpar_antigas(sessao):
 
 def buscar_alertas(sessao, id_estacao, id_parametro):
     return sql(sessao,
-        'SELECT id, mensagem FROM alertas WHERE id_estacao=%s AND id_parametro=%s',
+        'SELECT id, mensagem, severidade FROM alertas WHERE id_estacao=%s AND id_parametro=%s AND ativo=true',
         (id_estacao, id_parametro))
 
 def escalar_critico(sessao, id_alerta, nova_mensagem):
@@ -98,13 +82,9 @@ def escalar_critico(sessao, id_alerta, nova_mensagem):
         'UPDATE alertas SET severidade=%s, mensagem=%s, ativo=true WHERE id=%s',
         ('critico', nova_mensagem, id_alerta))
 
-# ── log no MongoDB via API ────────────────────────────────────────────────────
-
-# salva log do alerta critico no MongoDB via rota do backend
-# usa requests para chamar a API — sem depender de driver Mongo no Python
 def salvar_log_mongodb(nome_estacao, uid, nome_parametro, valor, mensagem):
     try:
-        requests.post(
+        r = requests.post(
             f'{API_URL}/logs-alertas/interno',
             json={
                 'estacao':   nome_estacao,
@@ -115,11 +95,9 @@ def salvar_log_mongodb(nome_estacao, uid, nome_parametro, valor, mensagem):
             },
             timeout=3
         )
-        print(f'  📝 Log salvo no MongoDB: {nome_estacao} | {nome_parametro} = {valor}')
+        print(f'  Log salvo no MongoDB: {nome_estacao} | {nome_parametro} = {valor}')
     except Exception as erro:
         print(f'  [AVISO] Nao foi possivel salvar log no MongoDB: {erro}')
-
-# ── logica de alertas ─────────────────────────────────────────────────────────
 
 def detectar_chave(nome):
     if not nome: return None
@@ -132,31 +110,32 @@ def detectar_chave(nome):
     return None
 
 def verificar_alerta(sessao, id_estacao, id_parametro, nome, valor, nome_estacao, uid):
-    alertas   = buscar_alertas(sessao, id_estacao, id_parametro)
-    chave     = detectar_chave(nome)
+    alertas = buscar_alertas(sessao, id_estacao, id_parametro)
+    chave   = detectar_chave(nome)
     if not chave: return
 
-    limites   = LIMITES[chave]
+    limites  = LIMITES[chave]
     mensagens = MENSAGENS.get(chave, {})
     v         = float(valor)
 
-    for id_alerta, mensagem in alertas:
-        msg  = (mensagem or '').lower()
-        nova = None
+    # verifica se o valor ultrapassa os limites
+    e_alta = limites['max'] is not None and v > limites['max']
+    e_baixa = limites['min'] is not None and v < limites['min']
 
-        if any(p in msg for p in PALAVRAS_ALTA) and limites['max'] and v > limites['max']:
-            nova = mensagens.get('max')
+    # só continua se o valor for extremo
+    if not e_alta and not e_baixa:
+        return
 
-        if any(p in msg for p in PALAVRAS_BAIXA) and limites['min'] and v < limites['min']:
-            nova = mensagens.get('min')
+    nova = mensagens.get('max') if e_alta else mensagens.get('min')
+    if not nova:
+        return
 
-        if nova:
-            escalar_critico(sessao, id_alerta, nova)
-            print(f'  ⚠ Alerta #{id_alerta} → CRITICO: {nova}')
-            # salva log permanente no MongoDB
-            salvar_log_mongodb(nome_estacao, uid, nome, valor, nova)
-
-# ── processamento principal ───────────────────────────────────────────────────
+    for id_alerta, mensagem, severidade in alertas:
+        # salva log no MongoDB sempre que o valor for extremo
+        # independente de já estar crítico ou não
+        escalar_critico(sessao, id_alerta, nova)
+        print(f'  ⚠ Alerta #{id_alerta} → CRITICO: {nova}')
+        salvar_log_mongodb(nome_estacao, uid, nome, valor, nova)
 
 def processar(payload_str):
     try:
@@ -187,8 +166,6 @@ def processar(payload_str):
         salvar_medicao(sessao, id_estacao, id_parametro, valor_real)
         salvar_historico(sessao, id_estacao, id_parametro, valor_real)
         limpar_antigas(sessao)
-
-        # passa nome_estacao e uid para poder salvar o log no MongoDB
         verificar_alerta(sessao, id_estacao, id_parametro, nome, valor_real, nome_estacao, uid_estacao)
 
         sessao.commit()
@@ -196,8 +173,6 @@ def processar(payload_str):
 
     except Exception as erro:
         print(f'[ERRO] {erro}')
-
-# ── callbacks MQTT ────────────────────────────────────────────────────────────
 
 def on_connect(cliente_mqtt, userdata, flags, rc):
     cliente_mqtt.subscribe(TOPICO, qos=1)
@@ -209,8 +184,6 @@ def on_disconnect(cliente_mqtt, userdata, rc):
 
 def on_message(cliente_mqtt, userdata, msg):
     processar(msg.payload.decode('utf-8'))
-
-# ── inicio ────────────────────────────────────────────────────────────────────
 
 print('=' * 50)
 print('  EnviroSense — Receptor MQTT')

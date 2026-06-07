@@ -1,29 +1,13 @@
-// Parametros.jsx — CRUD de Tipos de Parâmetro
-//
-// Aqui o admin cria os tipos disponíveis: Temperatura, Umidade, Vento, etc.
-// Estes tipos aparecem no modal de Estações para serem vinculados
-//
-// LIGAÇÃO COM OUTRAS PÁGINAS:
-// os tipos criados aqui aparecem na ETAPA 2 do modal de Estações
-// a junção Estação + Tipo aparece em Estações
-//
-// DADOS QUE RECEBO DO BACKEND (chegam via props do App.jsx):
-// tipos   = lista da tabela tipos_parametro do PostgreSQL
-// ehAdmin = true se o usuário for administrador
-// crud    = funções salvarTipo e deletarTipo
-
 import { useState } from 'react'
 
 const Formulario_Vazio_Para_Modal = { nome: '', unidade: '', fator: 1, valor_offset: 0 }
 
 export default function Parametros({ tipos, ehAdmin, crud }) {
 
-  // ESTADOS
   const [mostrarModal, setMostrarModal] = useState(false)
   const [idEditando,   setIdEditando]   = useState(null)
   const [formulario,   setFormulario]   = useState(Formulario_Vazio_Para_Modal)
 
-  // FUNÇÃO DE SALVAR
   async function salvar(evento) {
     evento.preventDefault()
     await crud.salvarTipo(idEditando, formulario)
@@ -33,7 +17,6 @@ export default function Parametros({ tipos, ehAdmin, crud }) {
   return (
     <div>
 
-      {/* CABEÇALHO DA PÁGINA */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h4 className="mb-0"><i className="bi bi-thermometer me-2"></i>Tipos de Parâmetro</h4>
         {ehAdmin && (
@@ -46,11 +29,9 @@ export default function Parametros({ tipos, ehAdmin, crud }) {
       </div>
 
       <p className="text-muted small mb-3">
-        <i className="me-1"></i>
         Os tipos cadastrados aqui ficam disponíveis para vincular às Estações.
       </p>
 
-      {/* TABELA DE TIPOS */}
       <div className="card">
         <div className="table-responsive">
           <table className="table table-hover mb-0">
@@ -61,7 +42,6 @@ export default function Parametros({ tipos, ehAdmin, crud }) {
               </tr>
             </thead>
             <tbody>
-              {/* .map() = uma linha por tipo | key={tipo.id} obrigatório no React */}
               {tipos.map(function(tipo) {
                 return (
                   <tr key={tipo.id}>
@@ -74,7 +54,7 @@ export default function Parametros({ tipos, ehAdmin, crud }) {
                         <button className="btn btn-sm btn-outline-secondary me-1"
                           onClick={function() {
                             setIdEditando(tipo.id)
-                            setFormulario({ ...tipo }) // aqui, o spread mantêm dados no modal quando for editá-lo
+                            setFormulario({ ...tipo })
                             setMostrarModal(true)
                           }}><i className="bi bi-pencil"></i></button>
                         <button className="btn btn-sm btn-outline-danger"
@@ -96,7 +76,6 @@ export default function Parametros({ tipos, ehAdmin, crud }) {
         </div>
       </div>
 
-      {/* MODAL DE TIPO */}
       {mostrarModal && (
         <div className="modal d-block" style={{ background: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog"><div className="modal-content">
@@ -104,8 +83,12 @@ export default function Parametros({ tipos, ehAdmin, crud }) {
               <h5 className="modal-title">{idEditando ? 'Editar Tipo' : 'Novo Tipo'}</h5>
               <button className="btn-close" onClick={function() { setMostrarModal(false) }} />
             </div>
+
+            {/* começo do formulário */}
             <form onSubmit={salvar}>
               <div className="modal-body">
+
+                {/* campo nome: texto livre obrigatório */}
                 <div className="mb-3">
                   <label className="form-label">Nome *</label>
                   <input className="form-control" required placeholder="Ex: Temperatura do Rio"
@@ -114,6 +97,8 @@ export default function Parametros({ tipos, ehAdmin, crud }) {
                       setFormulario({ ...formulario, nome: evento.target.value })
                     }} />
                 </div>
+
+                {/* campo unidade: texto livre obrigatório */}
                 <div className="mb-3">
                   <label className="form-label">Unidade *</label>
                   <input className="form-control" required placeholder="Ex: °C, %, hPa, mm, km/h"
@@ -122,9 +107,10 @@ export default function Parametros({ tipos, ehAdmin, crud }) {
                       setFormulario({ ...formulario, unidade: evento.target.value })
                     }} />
                 </div>
-                {/* fator e offset lado a lado
-                    fator        = multiplica o valor bruto do sensor
-                    valor_offset = soma após multiplicar pelo fator */}
+
+                {/* campos fator e offset lado a lado */}
+                {/* fator multiplica o valor bruto do sensor */}
+                {/* offset soma ao resultado após o fator */}
                 <div className="row g-2">
                   <div className="col">
                     <label className="form-label">Fator</label>
@@ -143,6 +129,7 @@ export default function Parametros({ tipos, ehAdmin, crud }) {
                       }} />
                   </div>
                 </div>
+
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary"
@@ -152,6 +139,8 @@ export default function Parametros({ tipos, ehAdmin, crud }) {
                 </button>
               </div>
             </form>
+            {/* fim do formulário */}
+
           </div></div>
         </div>
       )}

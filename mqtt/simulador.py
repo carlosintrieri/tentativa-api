@@ -9,7 +9,7 @@ from datetime import datetime
 BROKER    = 'broker.emqx.io'
 PORTA     = 1883
 TOPICO    = 'envirosense/medicoes'
-INTERVALO = 300
+INTERVALO = 10
 
 API_URL = os.getenv('API_URL', 'http://localhost:3001')
 EMAIL   = os.getenv('API_EMAIL', 'admin@enviro.com')
@@ -211,7 +211,7 @@ while True:
 
     print(f'[API] {len(ativas)} estacoes ativas com UID encontradas')
 
-    # percorre estacoes
+    # percorre estações
     for estacao in ativas:
 
         params_estacao = [

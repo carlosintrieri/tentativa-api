@@ -9,7 +9,7 @@ import Usuarios   from './pages/Usuarios'
 import Dashboard  from './pages/Dashboard'
 
 const BASE_URL  = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-const INTERVALO = 100000
+const INTERVALO = 10000
 
 const LIMITES = {
   temperatura: { max: 38,   min: 5,    unidade: '°C',   iconeMax: '🔥', iconeMin: '🥶' },
@@ -18,6 +18,7 @@ const LIMITES = {
   chuva:       { max: 60,   min: null, unidade: 'mm',   iconeMax: '🌧️', iconeMin: null },
   vento:       { max: 90,   min: null, unidade: 'km/h', iconeMax: '🌪️', iconeMin: null },
 }
+
 
 function detectarChave(nome) {
   if (!nome) return null
@@ -145,7 +146,7 @@ export default function App() {
           localStorage.setItem('medicoesVistas',
             JSON.stringify([...medicoesVistas.current])
           )
-          verificarExtremo(m)
+      //    verificarExtremo(m)
         })
       })
     }, INTERVALO)

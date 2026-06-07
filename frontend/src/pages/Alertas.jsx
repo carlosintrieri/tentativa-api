@@ -1,12 +1,10 @@
-// Alertas.jsx — CRUD de alertas + historico de criticos do MongoDB
-
 import { useState } from 'react'
 
 const FORM_VAZIO = {
   id_estacao: '', id_parametro: '', severidade: 'info', mensagem: '', ativo: true
 }
 
-export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud, logsAlertas }) {
+export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud }) {
 
   const [mostrarModal,     setMostrarModal]     = useState(false)
   const [idAlertaEditando, setIdAlertaEditando] = useState(null)
@@ -59,7 +57,6 @@ export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud, 
   return (
     <div>
 
-      {/* CABEÇALHO */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h4 className="mb-0"><i className="bi bi-bell me-2"></i>Alertas</h4>
         {ehAdmin && (
@@ -69,7 +66,6 @@ export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud, 
         )}
       </div>
 
-      {/* TABELA DE ALERTAS ATIVOS */}
       <div className="card mb-4">
         <div className="table-responsive">
           <table className="table table-hover mb-0">
@@ -127,7 +123,6 @@ export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud, 
         </div>
       </div>
 
-      {/* MODAL */}
       {mostrarModal && (
         <div className="modal d-block" style={{ background: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog"><div className="modal-content">
@@ -139,9 +134,12 @@ export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud, 
               <button className="btn-close" onClick={function() { setMostrarModal(false) }} />
             </div>
 
+            {/* começo do formulário */}
             <form onSubmit={salvar}>
               <div className="modal-body">
 
+                {/* campo estação: select dinâmico carregado do banco */}
+                {/* ao mudar a estação zera o parâmetro pois cada estação tem os seus */}
                 <div className="mb-3">
                   <label className="form-label">Estação *</label>
                   <select className="form-select" required value={formulario.id_estacao}
@@ -157,6 +155,7 @@ export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud, 
                   </select>
                 </div>
 
+                {/* campo parâmetro: select dependente da estação escolhida acima */}
                 <div className="mb-3">
                   <label className="form-label">
                     Parâmetro
@@ -175,6 +174,7 @@ export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud, 
                   </select>
                 </div>
 
+                {/* campo severidade: select fixo com três opções */}
                 <div className="mb-3">
                   <label className="form-label">Severidade inicial *</label>
                   <select className="form-select" value={formulario.severidade}
@@ -185,6 +185,8 @@ export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud, 
                   </select>
                 </div>
 
+                {/* campo mensagem: textarea livre */}
+                {/* palavras como quente frio calor ativam o escalamento automático no receptor */}
                 <div className="mb-3">
                   <label className="form-label">Mensagem *</label>
                   <div className="form-text mb-2">
@@ -195,6 +197,7 @@ export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud, 
                     onChange={function(e) { campo('mensagem', e.target.value) }} />
                 </div>
 
+                {/* checkbox ativo: só aparece ao editar, não ao criar */}
                 {idAlertaEditando && (
                   <div className="form-check">
                     <input className="form-check-input" type="checkbox"
@@ -214,6 +217,7 @@ export default function Alertas({ alertas, estacoes, parametros, ehAdmin, crud, 
                 </button>
               </div>
             </form>
+            {/* fim do formulário */}
 
           </div></div>
         </div>
