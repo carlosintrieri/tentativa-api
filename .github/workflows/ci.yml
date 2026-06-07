@@ -16,11 +16,11 @@ jobs:
 
       # baixa o código do repositório
       - name: Checkout do código
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # configura o Node.js
       - name: Configurar Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
 
@@ -28,11 +28,24 @@ jobs:
       - name: Instalar dependências do backend
         run: cd backend && npm install
 
-      # roda os 20 testes unitários
+      # roda os 20 testes unitários do backend
       # fowler: make the build self-testing
-      # se qualquer teste falhar o pipeline para — nenhum código quebrado chega ao Azure
-      - name: Testes unitários
+      - name: Testes unitários do backend
         run: cd backend && npm test
+
+      # configura o Python para os testes do receptor
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # instala dependências Python
+      - name: Instalar dependências Python
+        run: pip install paho-mqtt psycopg2-binary python-dotenv requests pytest
+
+      # roda os 17 testes unitários do receptor
+      - name: Testes unitários do receptor Python
+        run: cd mqtt && pytest testes/ -v
 
       # instala dependências do frontend
       - name: Instalar dependências do frontend
