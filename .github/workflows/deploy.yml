@@ -1,6 +1,5 @@
 name: Deploy Manual
 
-# dispara só quando você clicar no botão no GitHub Actions
 on:
   workflow_dispatch:
     inputs:
@@ -9,16 +8,17 @@ on:
         required: true
         default: '1.0'
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # baixa o código
       - name: Checkout
         uses: actions/checkout@v3
 
-      # cria a branch deploy/v1.0 automaticamente
       - name: Criar branch de deploy
         run: |
           git config user.name "github-actions"
@@ -26,14 +26,12 @@ jobs:
           git checkout -b deploy/v${{ github.event.inputs.versao }}
           git push origin deploy/v${{ github.event.inputs.versao }}
 
-      # instala dependências e faz o build do frontend
       - name: Instalar dependências frontend
         run: |
           cd frontend
           npm install
           npm run build
 
-      # faz o deploy no Azure App Service
       - name: Deploy no Azure
         uses: azure/webapps-deploy@v2
         with:
