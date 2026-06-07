@@ -84,7 +84,7 @@ def escalar_critico(sessao, id_alerta, nova_mensagem):
 
 def salvar_log_mongodb(nome_estacao, uid, nome_parametro, valor, mensagem):
     try:
-        r = requests.post(
+        requests.post(
             f'{API_URL}/logs-alertas/interno',
             json={
                 'estacao':   nome_estacao,
@@ -114,15 +114,13 @@ def verificar_alerta(sessao, id_estacao, id_parametro, nome, valor, nome_estacao
     chave   = detectar_chave(nome)
     if not chave: return
 
-    limites  = LIMITES[chave]
+    limites   = LIMITES[chave]
     mensagens = MENSAGENS.get(chave, {})
     v         = float(valor)
 
-    # verifica se o valor ultrapassa os limites
-    e_alta = limites['max'] is not None and v > limites['max']
+    e_alta  = limites['max'] is not None and v > limites['max']
     e_baixa = limites['min'] is not None and v < limites['min']
 
-    # só continua se o valor for extremo
     if not e_alta and not e_baixa:
         return
 
@@ -131,8 +129,6 @@ def verificar_alerta(sessao, id_estacao, id_parametro, nome, valor, nome_estacao
         return
 
     for id_alerta, mensagem, severidade in alertas:
-        # salva log no MongoDB sempre que o valor for extremo
-        # independente de já estar crítico ou não
         escalar_critico(sessao, id_alerta, nova)
         print(f'  ⚠ Alerta #{id_alerta} → CRITICO: {nova}')
         salvar_log_mongodb(nome_estacao, uid, nome, valor, nova)
@@ -185,15 +181,17 @@ def on_disconnect(cliente_mqtt, userdata, rc):
 def on_message(cliente_mqtt, userdata, msg):
     processar(msg.payload.decode('utf-8'))
 
-print('=' * 50)
-print('  EnviroSense — Receptor MQTT')
-print(f'  Broker : {BROKER}:{PORTA}')
-print(f'  Topico : {TOPICO}')
-print('=' * 50)
+# só roda quando executado diretamente — não quando importado pelo pytest
+if __name__ == '__main__':
+    print('=' * 50)
+    print('  EnviroSense — Receptor MQTT')
+    print(f'  Broker : {BROKER}:{PORTA}')
+    print(f'  Topico : {TOPICO}')
+    print('=' * 50)
 
-cliente_mqtt = mqtt.Client(client_id='envirosense-receptor', clean_session=False)
-cliente_mqtt.on_connect    = on_connect
-cliente_mqtt.on_disconnect = on_disconnect
-cliente_mqtt.on_message    = on_message
-cliente_mqtt.connect(BROKER, PORTA, keepalive=60)
-cliente_mqtt.loop_forever()
+    cliente_mqtt = mqtt.Client(client_id='envirosense-receptor', clean_session=False)
+    cliente_mqtt.on_connect    = on_connect
+    cliente_mqtt.on_disconnect = on_disconnect
+    cliente_mqtt.on_message    = on_message
+    cliente_mqtt.connect(BROKER, PORTA, keepalive=60)
+    cliente_mqtt.loop_forever()
