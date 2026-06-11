@@ -3,24 +3,24 @@
 const { sql } = require('../conexao')
 
 function buscarTodas() {
-  return sql('SELECT id, nome, uid, endereco, responsavel, lat, long, descricao, ativo FROM estacoes ORDER BY nome')
+  return sql('SELECT id, nome, endereco, responsavel, lat, long, descricao, ativo FROM estacoes ORDER BY nome')
 }
 
 function buscarPorUid(uid) {
   return sql('SELECT * FROM estacoes WHERE uid = $1 AND ativo = true', [uid])
 }
 
-function criar(nome, uid, endereco, responsavel, lat, long, descricao) {
+function criar(nome, endereco, responsavel, lat, long, descricao) {
   return sql(
-    'INSERT INTO estacoes (nome, uid, endereco, responsavel, lat, long, descricao) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-    [nome, uid || null, endereco || null, responsavel || null, lat || null, long || null, descricao || null]
+    'INSERT INTO estacoes (nome, endereco, responsavel, lat, long, descricao) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+    [nome, endereco || null, responsavel || null, lat || null, long || null, descricao || null]
   )
 }
 
-function editar(id, nome, uid, endereco, responsavel, lat, long, descricao, ativo) {
+function editar(id, nome, endereco, responsavel, lat, long, descricao, ativo) {
   return sql(
-    'UPDATE estacoes SET nome=$1, uid=$2, endereco=$3, responsavel=$4, lat=$5, long=$6, descricao=$7, ativo=$8 WHERE id=$9 RETURNING *',
-    [nome, uid || null, endereco || null, responsavel || null, lat || null, long || null, descricao || null, ativo !== false, id]
+    'UPDATE estacoes SET nome=$1, endereco=$2, responsavel=$3, lat=$4, long=$5, descricao=$6, ativo=$7 WHERE id=$8 RETURNING *',
+    [nome, endereco || null, responsavel || null, lat || null, long || null, descricao || null, ativo !== false, id]
   )
 }
 
